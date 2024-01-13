@@ -1,26 +1,16 @@
-import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
-
 plugins {
 	`java-library`
 	`maven-publish`
 
 	id("com.diffplug.spotless") version "6.23.3"
-	id("com.google.cloud.artifactregistry.gradle-plugin") version "2.2.1"
-	id("org.springframework.boot") version "3.2.1" apply false
-	id("io.spring.dependency-management") version "1.1.4"
 }
 
 group = "io.github.lipiridi"
 version = "0.0.1-SNAPSHOT"
 
-the<DependencyManagementExtension>().apply {
-	imports {
-		mavenBom(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
-	}
-}
-
 java {
 	withSourcesJar()
+	//withJavadocJar()
 }
 
 configurations {
@@ -34,16 +24,18 @@ repositories {
 }
 
 dependencies {
-	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	implementation("org.springframework.boot:spring-boot-starter-validation")
-	implementation("com.fasterxml.jackson.core:jackson-databind")
+	val springBootVersion = "3.2.1"
+	val lombokVersion = "1.18.30"
 
-	compileOnly("org.projectlombok:lombok")
-	annotationProcessor("org.projectlombok:lombok")
+	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}")
+	implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
+	implementation("org.springframework.boot:spring-boot-starter-validation:${springBootVersion}")
 
-	testCompileOnly("org.projectlombok:lombok")
-	testAnnotationProcessor("org.projectlombok:lombok")
+	compileOnly("org.projectlombok:lombok:${lombokVersion}")
+	annotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+
+	testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
+	testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
 }
 
 tasks.withType<Test> {

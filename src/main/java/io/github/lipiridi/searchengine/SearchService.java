@@ -21,8 +21,10 @@ import jakarta.persistence.criteria.Root;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -30,6 +32,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.query.SortDirection;
+import org.springframework.util.CollectionUtils;
 
 @RequiredArgsConstructor
 public class SearchService {
@@ -127,8 +130,12 @@ public class SearchService {
                     "The search request is limited to %s results".formatted(maxPageSize));
         }
 
-        searchRequest.sorts().forEach(sort -> validateExistingSearchField(searchFieldMap, sort.field()));
-        searchRequest.filters().forEach(filter -> validateExistingSearchField(searchFieldMap, filter.field()));
+        Optional.ofNullable(searchRequest.sorts())
+                .orElseGet(Collections::emptyList)
+                .forEach(sort -> validateExistingSearchField(searchFieldMap, sort.field()));
+        Optional.ofNullable(searchRequest.filters())
+                .orElseGet(Collections::emptyList)
+                .forEach(filter -> validateExistingSearchField(searchFieldMap, filter.field()));
     }
 
     private void validateExistingSearchField(Map<String, SearchFieldData> searchFieldMap, String field) {
@@ -147,7 +154,7 @@ public class SearchService {
         Predicate predicate = criteriaBuilder.conjunction();
 
         var filters = searchRequest.filters();
-        if (filters.isEmpty()) {
+        if (CollectionUtils.isEmpty(filters)) {
             return;
         }
 
@@ -163,7 +170,7 @@ public class SearchService {
             CriteriaQuery<?> criteriaQuery,
             Root<?> root) {
         var sorts = searchRequest.sorts();
-        if (sorts.isEmpty()) {
+        if (CollectionUtils.isEmpty(sorts)) {
             return;
         }
 
