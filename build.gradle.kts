@@ -1,6 +1,11 @@
+import java.net.URI
+
+fun properties(key: String) = project.findProperty(key)?.toString() ?: ""
+
 plugins {
 	`java-library`
 	`maven-publish`
+	signing
 
 	id("com.diffplug.spotless") version "6.23.3"
 }
@@ -48,11 +53,58 @@ publishing {
 			from(components["java"])
 			pom {
 				packaging = "jar"
-				name.set(project.name)
+
+				name.set("Hibernate Search Engine")
 				url.set("https://github.com/lipiridi/hibernate-search-engine")
+				description.set("Hibernate Search Engine simplifies the process of querying databases by any field, offering convenient pagination support")
+
+				developers {
+					developer {
+						name = "Dimitrii Lipiridi"
+						email = "lipirididi@gmail.com"
+						organizationUrl = "https://github.com/lipiridi"
+					}
+				}
+
+				scm {
+					connection = "scm:git:git://github.com/lipiridi/hibernate-search-engine.git"
+					developerConnection = "scm:git:ssh://github.com:lipiridi/hibernate-search-engine.git"
+					url = "http://github.com/lipiridi/hibernate-search-engine/tree/master"
+				}
+
+				licenses {
+					license {
+						name = "MIT License"
+						url = "http://www.opensource.org/licenses/mit-license.php"
+					}
+				}
 			}
 		}
 	}
+
+	repositories {
+		maven {
+			name = "SnapshotOSSRH"
+			url = URI("https://s01.oss.sonatype.org/content/repositories/snapshots")
+			credentials {
+				username = properties("ossrhUsername")
+				password = properties("ossrhPassword")
+			}
+		}
+
+		maven {
+			name = "OSSRH"
+			url = URI("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+			credentials {
+				username = properties("ossrhUsername")
+				password = properties("ossrhPassword")
+			}
+		}
+	}
+}
+
+signing {
+	sign(publishing.publications)
 }
 
 tasks.jar {
