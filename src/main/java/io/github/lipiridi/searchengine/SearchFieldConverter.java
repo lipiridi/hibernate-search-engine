@@ -1,9 +1,9 @@
 package io.github.lipiridi.searchengine;
 
-import static io.github.lipiridi.searchengine.util.ReflectionUtils.getConversionClass;
+import static io.github.lipiridi.searchengine.util.ReflectionUtils.getCastClass;
 
 import io.github.lipiridi.searchengine.dto.Filter;
-import io.github.lipiridi.searchengine.util.ClassCastUtils;
+import io.github.lipiridi.searchengine.util.ReflectionUtils;
 import jakarta.annotation.Nullable;
 import java.util.AbstractMap;
 import java.util.Arrays;
@@ -23,7 +23,7 @@ public class SearchFieldConverter {
     public SearchFieldData resolveSearchField(Map<String, SearchFieldData> searchFields, Filter filter) {
         SearchFieldData searchFieldData = searchFields.get(filter.field());
         if (!allowedFiltersByClass
-                .get(getConversionClass(searchFieldData.fieldClass()))
+                .get(getCastClass(searchFieldData.fieldClass()))
                 .contains(filter.type())) {
             throw new DatabaseSearchEngineException("Not allowed filter type for field %s".formatted(filter.field()));
         }
@@ -50,9 +50,9 @@ public class SearchFieldConverter {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Function<String, Object> convertFunction(Class<?> entityClass) {
         if (Enum.class.isAssignableFrom(entityClass)) {
-            return value -> ClassCastUtils.toEnum(value, (Class<? extends Enum>) entityClass);
+            return value -> Enum.valueOf((Class<? extends Enum>) entityClass, value.toUpperCase());
         }
 
-        return ClassCastUtils.CLASS_CAST_FUNCTIONS.get(getConversionClass(entityClass));
+        return ReflectionUtils.CLASS_CAST_FUNCTIONS.get(entityClass);
     }
 }

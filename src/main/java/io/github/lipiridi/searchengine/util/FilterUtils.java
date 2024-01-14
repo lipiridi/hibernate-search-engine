@@ -13,7 +13,8 @@ import lombok.experimental.UtilityClass;
 public class FilterUtils {
 
     public static List<Class<?>> getCommonSupportedClasses() {
-        List<Class<?>> classes = new ArrayList<>(List.of(String.class, UUID.class, Currency.class, Enum.class));
+        List<Class<?>> classes =
+                new ArrayList<>(List.of(String.class, Boolean.class, UUID.class, Currency.class, Enum.class));
         classes.addAll(getComparableSupportedClasses());
         return Collections.unmodifiableList(classes);
     }

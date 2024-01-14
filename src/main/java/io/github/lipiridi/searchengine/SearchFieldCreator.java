@@ -1,27 +1,35 @@
 package io.github.lipiridi.searchengine;
 
-import io.github.lipiridi.searchengine.util.ClassCastUtils;
 import io.github.lipiridi.searchengine.util.ReflectionUtils;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class SearchFieldCreator {
 
     private static final Set<Class<?>> SUPPORTED_CLASSES;
 
+    private final Map<Class<?>, List<SearchFieldData>> collectedSearchFields = new HashMap<>();
+
     static {
-        var copy = new HashSet<>(ClassCastUtils.CLASS_CAST_FUNCTIONS.keySet());
+        var copy = new HashSet<>(ReflectionUtils.CLASS_CAST_FUNCTIONS.keySet());
         copy.add(Enum.class);
         SUPPORTED_CLASSES = Collections.unmodifiableSet(copy);
     }
 
     public Collection<SearchFieldData> createFromClass(Class<?> entityClass) {
+        List<SearchFieldData> existingSearchFieldData = collectedSearchFields.get(entityClass);
+        if (existingSearchFieldData != null) {
+            return existingSearchFieldData;
+        }
+
         List<SearchFieldData> searchFieldDataList = new ArrayList<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
@@ -59,6 +67,7 @@ public class SearchFieldCreator {
             }
         }
 
+        collectedSearchFields.put(entityClass, searchFieldDataList);
         return searchFieldDataList;
     }
 
