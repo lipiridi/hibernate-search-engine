@@ -8,4 +8,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SearchEngineProperties {
 
     int maxPageSize = 100;
+    NameConvention nameConvention = NameConvention.CAMEL_CASE;
+
+    public enum NameConvention {
+        CAMEL_CASE,
+        SNAKE_CASE,
+        DOT_CASE
+    }
 }

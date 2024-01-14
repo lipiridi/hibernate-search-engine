@@ -1,5 +1,7 @@
 package io.github.lipiridi.searchengine.util;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Currency;
@@ -49,5 +51,14 @@ public class ReflectionUtils {
         }
 
         return originalClass;
+    }
+
+    public static Class<?> getGenericType(Field field) {
+        ParameterizedType genericType = (ParameterizedType) field.getGenericType();
+        if (genericType.getActualTypeArguments().length > 0) {
+            return (Class<?>) genericType.getActualTypeArguments()[0];
+        }
+
+        return null;
     }
 }

@@ -1,11 +1,11 @@
 package io.github.lipiridi.searchengine;
 
+import io.github.lipiridi.searchengine.config.SearchEngineProperties;
 import io.github.lipiridi.searchengine.util.ReflectionUtils;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -18,6 +18,7 @@ import java.util.Set;
 public class SearchFieldCreator {
 
     private static final Set<Class<?>> SUPPORTED_CLASSES;
+    private final SearchEngineProperties.NameConvention nameConvention;
 
     private final Map<Class<?>, List<SearchField>> collectedSearchFields = new HashMap<>();
 
@@ -25,6 +26,10 @@ public class SearchFieldCreator {
         var copy = new HashSet<>(ReflectionUtils.CLASS_CAST_FUNCTIONS.keySet());
         copy.add(Enum.class);
         SUPPORTED_CLASSES = Collections.unmodifiableSet(copy);
+    }
+
+    public SearchFieldCreator(SearchEngineProperties.NameConvention nameConvention) {
+        this.nameConvention = nameConvention;
     }
 
     public Collection<SearchField> createFromClass(Class<?> entityClass) {
@@ -43,7 +48,7 @@ public class SearchFieldCreator {
                 Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
 
                 if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
-                    Class<?> genericType = getGenericType(field);
+                    Class<?> genericType = ReflectionUtils.getGenericType(field);
                     if (genericType == null) {
                         continue;
                     }
@@ -78,13 +83,5 @@ public class SearchFieldCreator {
 
         collectedSearchFields.put(entityClass, searchFieldList);
         return searchFieldList;
-    }
-
-    private Class<?> getGenericType(Field field) {
-        ParameterizedType genericType = (ParameterizedType) field.getGenericType();
-        if (genericType.getActualTypeArguments().length > 0) {
-            return (Class<?>) genericType.getActualTypeArguments()[0];
-        }
-        return null;
     }
 }

@@ -40,7 +40,8 @@ public class SearchService {
     private final EntityManager entityManager;
     private final SearchEngineProperties searchEngineProperties;
     private final SearchFieldConverter searchFieldConverter = new SearchFieldConverter();
-    private final SearchFieldCreator searchFieldCreator = new SearchFieldCreator();
+    private final SearchFieldCreator searchFieldCreator =
+            new SearchFieldCreator(searchEngineProperties.getNameConvention());
 
     public <E> SearchResponse<E> search(SearchRequest searchRequest, Class<E> entityClass) {
         var searchFields = searchFieldCreator.createFromClass(entityClass);
