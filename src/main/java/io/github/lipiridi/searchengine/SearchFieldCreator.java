@@ -2,8 +2,10 @@ package io.github.lipiridi.searchengine;
 
 import io.github.lipiridi.searchengine.config.SearchEngineProperties;
 import io.github.lipiridi.searchengine.util.ReflectionUtils;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.OneToMany;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -33,13 +35,26 @@ public class SearchFieldCreator {
         this.namingConvention = namingConvention;
     }
 
-    public Collection<SearchField> createFromClass(Class<?> entityClass) {
+    public List<SearchField> createFromClass(Class<?> entityClass) {
         List<SearchField> existingSearchFields = collectedSearchFields.get(entityClass);
         if (existingSearchFields != null) {
             return existingSearchFields;
         }
 
-        List<SearchField> searchFieldList = new ArrayList<>();
+        List<SearchField> searchFields = createFromClass(entityClass, null);
+
+        collectedSearchFields.put(entityClass, searchFields);
+        return searchFields;
+    }
+
+    private List<SearchField> createFromClass(Class<?> entityClass, @Nullable Class<?> parentClass) {
+        List<SearchField> searchFields = new ArrayList<>();
+
+        // Include search fields from the abstract class annotated with @MappedSuperclass
+        Class<?> superClass = entityClass.getSuperclass();
+        if (superClass != null && superClass.isAnnotationPresent(MappedSuperclass.class)) {
+            searchFields.addAll(createFromClass(superClass, entityClass));
+        }
 
         for (Field field : entityClass.getDeclaredFields()) {
             if (field.isAnnotationPresent(Searchable.class)) {
@@ -49,7 +64,7 @@ public class SearchFieldCreator {
                 Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
 
                 // Prevent stack overflow
-                if (fieldTypeWrapper.equals(entityClass)) {
+                if (fieldTypeWrapper.equals(entityClass) || fieldTypeWrapper.equals(parentClass)) {
                     continue;
                 }
 
@@ -61,26 +76,27 @@ public class SearchFieldCreator {
 
                     if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
-                        searchFieldList.add(new SearchField(formatId(id), fieldName, genericType, true));
+                        searchFields.add(new SearchField(formatId(id), fieldName, genericType, true));
                     } else if (field.isAnnotationPresent(OneToMany.class)) {
-                        searchFieldList.addAll(createNestedEntitySearchFields(id, fieldName, genericType));
+                        searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, entityClass));
                     }
                 } else {
                     if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
-                        searchFieldList.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper));
+                        searchFields.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper));
                     } else if (field.isAnnotationPresent(ManyToOne.class)) {
-                        searchFieldList.addAll(createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper));
+                        searchFields.addAll(
+                                createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, entityClass));
                     }
                 }
             }
         }
 
-        collectedSearchFields.put(entityClass, searchFieldList);
-        return searchFieldList;
+        return searchFields;
     }
 
-    private List<SearchField> createNestedEntitySearchFields(String id, String fieldName, Class<?> fieldType) {
-        return createFromClass(fieldType).stream()
+    private List<SearchField> createNestedEntitySearchFields(
+            String id, String fieldName, Class<?> fieldType, Class<?> parentClass) {
+        return createFromClass(fieldType, parentClass).stream()
                 .map(nestedFieldData -> new SearchField(
                         formatId(id + capitalize(nestedFieldData.id())),
                         fieldName + "." + nestedFieldData.path(),
