@@ -28,20 +28,22 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.hibernate.query.SortDirection;
 import org.springframework.util.CollectionUtils;
 
-@RequiredArgsConstructor
 public class SearchService {
 
     private final EntityManager entityManager;
     private final SearchEngineProperties searchEngineProperties;
+    private final SearchFieldCreator searchFieldCreator;
     private final SearchFieldConverter searchFieldConverter = new SearchFieldConverter();
-    private final SearchFieldCreator searchFieldCreator =
-            new SearchFieldCreator(searchEngineProperties.getNameConvention());
+
+    public SearchService(EntityManager entityManager, SearchEngineProperties searchEngineProperties) {
+        this.entityManager = entityManager;
+        this.searchEngineProperties = searchEngineProperties;
+
+        searchFieldCreator = new SearchFieldCreator(searchEngineProperties.getNamingConvention());
+    }
 
     public <E> SearchResponse<E> search(SearchRequest searchRequest, Class<E> entityClass) {
         var searchFields = searchFieldCreator.createFromClass(entityClass);
@@ -199,15 +201,24 @@ public class SearchService {
         return path;
     }
 
-    @AllArgsConstructor
     private class FilterQueryCriteriaConsumer implements Consumer<Filter> {
 
         private final CriteriaBuilder builder;
         private final Root<?> root;
         private final Map<String, SearchField> searchFields;
-
-        @Getter
         private Predicate predicate;
+
+        public FilterQueryCriteriaConsumer(
+                CriteriaBuilder builder, Root<?> root, Map<String, SearchField> searchFields, Predicate predicate) {
+            this.builder = builder;
+            this.root = root;
+            this.searchFields = searchFields;
+            this.predicate = predicate;
+        }
+
+        public Predicate getPredicate() {
+            return predicate;
+        }
 
         @Override
         public void accept(Filter filter) {

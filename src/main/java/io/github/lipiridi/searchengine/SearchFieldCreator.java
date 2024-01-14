@@ -14,11 +14,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class SearchFieldCreator {
 
     private static final Set<Class<?>> SUPPORTED_CLASSES;
-    private final SearchEngineProperties.NameConvention nameConvention;
+    private final SearchEngineProperties.NamingConvention namingConvention;
 
     private final Map<Class<?>, List<SearchField>> collectedSearchFields = new HashMap<>();
 
@@ -28,8 +29,8 @@ public class SearchFieldCreator {
         SUPPORTED_CLASSES = Collections.unmodifiableSet(copy);
     }
 
-    public SearchFieldCreator(SearchEngineProperties.NameConvention nameConvention) {
-        this.nameConvention = nameConvention;
+    public SearchFieldCreator(SearchEngineProperties.NamingConvention namingConvention) {
+        this.namingConvention = namingConvention;
     }
 
     public Collection<SearchField> createFromClass(Class<?> entityClass) {
@@ -47,6 +48,11 @@ public class SearchFieldCreator {
                 String id = searchableAnnotation.value().isEmpty() ? fieldName : searchableAnnotation.value();
                 Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
 
+                // Prevent stack overflow
+                if (fieldTypeWrapper.equals(entityClass)) {
+                    continue;
+                }
+
                 if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
                     Class<?> genericType = ReflectionUtils.getGenericType(field);
                     if (genericType == null) {
@@ -55,27 +61,15 @@ public class SearchFieldCreator {
 
                     if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
-                        searchFieldList.add(new SearchField(id, fieldName, genericType, true));
+                        searchFieldList.add(new SearchField(formatId(id), fieldName, genericType, true));
                     } else if (field.isAnnotationPresent(OneToMany.class)) {
-                        // Handle nested entities within collections
-                        searchFieldList.addAll(createFromClass(genericType).stream()
-                                .map(nestedFieldData -> new SearchField(
-                                        id + nestedFieldData.id(),
-                                        fieldName + "." + nestedFieldData.path(),
-                                        nestedFieldData.fieldType()))
-                                .toList());
+                        searchFieldList.addAll(createNestedEntitySearchFields(id, fieldName, genericType));
                     }
                 } else {
                     if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
-                        searchFieldList.add(new SearchField(id, fieldName, fieldTypeWrapper));
+                        searchFieldList.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper));
                     } else if (field.isAnnotationPresent(ManyToOne.class)) {
-                        // Handle nested entities
-                        searchFieldList.addAll(createFromClass(fieldTypeWrapper).stream()
-                                .map(nestedFieldData -> new SearchField(
-                                        id + nestedFieldData.id(),
-                                        fieldName + "." + nestedFieldData.path(),
-                                        nestedFieldData.fieldType()))
-                                .toList());
+                        searchFieldList.addAll(createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper));
                     }
                 }
             }
@@ -83,5 +77,26 @@ public class SearchFieldCreator {
 
         collectedSearchFields.put(entityClass, searchFieldList);
         return searchFieldList;
+    }
+
+    private List<SearchField> createNestedEntitySearchFields(String id, String fieldName, Class<?> fieldType) {
+        return createFromClass(fieldType).stream()
+                .map(nestedFieldData -> new SearchField(
+                        formatId(id + capitalize(nestedFieldData.id())),
+                        fieldName + "." + nestedFieldData.path(),
+                        nestedFieldData.fieldType()))
+                .collect(Collectors.toList());
+    }
+
+    private String capitalize(String input) {
+        return input.substring(0, 1).toUpperCase() + input.substring(1);
+    }
+
+    private String formatId(String id) {
+        return switch (namingConvention) {
+            case CAMEL_CASE -> id;
+            case SNAKE_CASE -> id.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase();
+            case DOT_CASE -> id.replaceAll("([a-z0-9])([A-Z])", "$1.$2").toLowerCase();
+        };
     }
 }

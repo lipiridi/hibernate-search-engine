@@ -2,11 +2,7 @@ package io.github.lipiridi.searchengine;
 
 import io.github.lipiridi.searchengine.util.FilterUtils;
 import java.util.List;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
-@Getter
-@RequiredArgsConstructor
 public enum FilterType {
     IS_NULL(FilterUtils.getCommonSupportedClasses()),
     IS_NOT_NULL(FilterUtils.getCommonSupportedClasses()),
@@ -22,4 +18,12 @@ public enum FilterType {
     LESS_THAN_OR_EQUAL(FilterUtils.getComparableSupportedClasses());
 
     private final List<Class<?>> supportedClasses;
+
+    private FilterType(List<Class<?>> supportedClasses) {
+        this.supportedClasses = supportedClasses;
+    }
+
+    public List<Class<?>> getSupportedClasses() {
+        return this.supportedClasses;
+    }
 }

@@ -7,10 +7,12 @@ import java.util.Collections;
 import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
-import lombok.experimental.UtilityClass;
 
-@UtilityClass
-public class FilterUtils {
+public final class FilterUtils {
+
+    private FilterUtils() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static List<Class<?>> getCommonSupportedClasses() {
         List<Class<?>> classes =

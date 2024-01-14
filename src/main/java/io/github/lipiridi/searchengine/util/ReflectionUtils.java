@@ -8,10 +8,8 @@ import java.util.Currency;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
-import lombok.experimental.UtilityClass;
 
-@UtilityClass
-public class ReflectionUtils {
+public final class ReflectionUtils {
 
     public static final Map<Class<?>, Function<String, Object>> CLASS_CAST_FUNCTIONS = Map.ofEntries(
             Map.entry(String.class, value -> value),
@@ -26,6 +24,10 @@ public class ReflectionUtils {
             Map.entry(BigDecimal.class, BigDecimal::new),
             Map.entry(Instant.class, value -> Instant.ofEpochMilli(Long.parseLong(value))),
             Map.entry(Currency.class, value -> Currency.getInstance(value.toUpperCase())));
+
+    private ReflectionUtils() {
+        throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
+    }
 
     public static Class<?> getFieldTypeWrapper(Class<?> fieldType) {
         if (!fieldType.isPrimitive()) {
