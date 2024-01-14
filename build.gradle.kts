@@ -15,7 +15,7 @@ version = "0.0.1-SNAPSHOT"
 
 java {
 	withSourcesJar()
-	//withJavadocJar()
+	withJavadocJar()
 }
 
 configurations {
@@ -45,6 +45,10 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+tasks.withType<Javadoc> {
+	options.quiet()
 }
 
 publishing {
