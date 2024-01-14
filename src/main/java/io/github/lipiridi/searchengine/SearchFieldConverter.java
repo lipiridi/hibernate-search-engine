@@ -20,29 +20,27 @@ public class SearchFieldConverter {
             .collect(Collectors.groupingBy(
                     Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toSet())));
 
-    public SearchFieldData resolveSearchField(Map<String, SearchFieldData> searchFields, Filter filter) {
-        SearchFieldData searchFieldData = searchFields.get(filter.field());
-        if (!allowedFiltersByClass
-                .get(getCastClass(searchFieldData.fieldClass()))
-                .contains(filter.type())) {
+    public SearchField resolveSearchField(Map<String, SearchField> searchFields, Filter filter) {
+        SearchField searchField = searchFields.get(filter.field());
+        if (!allowedFiltersByClass.get(getCastClass(searchField.fieldType())).contains(filter.type())) {
             throw new DatabaseSearchEngineException("Not allowed filter type for field %s".formatted(filter.field()));
         }
 
-        return searchFieldData;
+        return searchField;
     }
 
-    public Object getConvertedValue(String originalValue, SearchFieldData searchFieldData) {
-        Class<?> entityClass = searchFieldData.fieldClass();
-        Function<String, Object> convertFunction = convertFunction(entityClass);
+    public Object getConvertedValue(String originalValue, SearchField searchField) {
+        Class<?> fieldType = searchField.fieldType();
+        var convertFunction = convertFunction(fieldType);
         if (convertFunction == null) {
             throw new DatabaseSearchEngineException(
-                    "Unable to find convert function for class %s".formatted(entityClass));
+                    "Unable to find convert function for field type %s".formatted(fieldType));
         }
         try {
             return convertFunction.apply(originalValue);
         } catch (Exception e) {
             throw new DatabaseSearchEngineException(
-                    "Unable to convert search field %s with value %s".formatted(searchFieldData.id(), originalValue));
+                    "Unable to convert search field %s with value %s".formatted(searchField.id(), originalValue));
         }
     }
 

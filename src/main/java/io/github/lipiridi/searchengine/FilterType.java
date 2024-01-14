@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum FilterType {
+    IS_NULL(FilterUtils.getCommonSupportedClasses()),
+    IS_NOT_NULL(FilterUtils.getCommonSupportedClasses()),
     EQUAL(FilterUtils.getCommonSupportedClasses()),
     NOT_EQUAL(FilterUtils.getCommonSupportedClasses()),
     IN(FilterUtils.getCommonSupportedClasses()),

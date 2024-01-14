@@ -1,21 +1,8 @@
 package io.github.lipiridi.searchengine;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-import org.springframework.core.annotation.AliasFor;
+public record SearchField(String id, String path, Class<?> fieldType) {
 
-@Target(ElementType.FIELD)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface SearchField {
-
-    /**
-     * Name of the field for the search request
-     */
-    @AliasFor("name")
-    String value() default "";
-
-    @AliasFor("value")
-    String name() default "";
+    public SearchField(String id, Class<?> fieldType) {
+        this(id, id, fieldType);
+    }
 }

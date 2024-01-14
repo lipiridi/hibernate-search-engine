@@ -16,7 +16,7 @@ public class SearchFieldCreator {
 
     private static final Set<Class<?>> SUPPORTED_CLASSES;
 
-    private final Map<Class<?>, List<SearchFieldData>> collectedSearchFields = new HashMap<>();
+    private final Map<Class<?>, List<SearchField>> collectedSearchFields = new HashMap<>();
 
     static {
         var copy = new HashSet<>(ReflectionUtils.CLASS_CAST_FUNCTIONS.keySet());
@@ -24,51 +24,51 @@ public class SearchFieldCreator {
         SUPPORTED_CLASSES = Collections.unmodifiableSet(copy);
     }
 
-    public Collection<SearchFieldData> createFromClass(Class<?> entityClass) {
-        List<SearchFieldData> existingSearchFieldData = collectedSearchFields.get(entityClass);
-        if (existingSearchFieldData != null) {
-            return existingSearchFieldData;
+    public Collection<SearchField> createFromClass(Class<?> entityClass) {
+        List<SearchField> existingSearchFields = collectedSearchFields.get(entityClass);
+        if (existingSearchFields != null) {
+            return existingSearchFields;
         }
 
-        List<SearchFieldData> searchFieldDataList = new ArrayList<>();
+        List<SearchField> searchFieldList = new ArrayList<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
-            if (field.isAnnotationPresent(SearchField.class)) {
-                SearchField searchFieldAnnotation = field.getAnnotation(SearchField.class);
+            if (field.isAnnotationPresent(Searchable.class)) {
+                Searchable searchableAnnotation = field.getAnnotation(Searchable.class);
                 String fieldName = field.getName();
-                String id = searchFieldAnnotation.value().isEmpty() ? fieldName : searchFieldAnnotation.value();
+                String id = searchableAnnotation.value().isEmpty() ? fieldName : searchableAnnotation.value();
                 Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
 
                 if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
-                    searchFieldDataList.add(new SearchFieldData(id, fieldName, fieldTypeWrapper));
+                    searchFieldList.add(new SearchField(id, fieldName, fieldTypeWrapper));
                 } else if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
                     Class<?> genericType = getGenericType(field);
                     if (genericType != null
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
-                        searchFieldDataList.add(new SearchFieldData(id, fieldName, genericType));
+                        searchFieldList.add(new SearchField(id, fieldName, genericType));
                     } else if (genericType != null) {
                         // Handle nested entities within collections
-                        searchFieldDataList.addAll(createFromClass(genericType).stream()
-                                .map(nestedFieldData -> new SearchFieldData(
+                        searchFieldList.addAll(createFromClass(genericType).stream()
+                                .map(nestedFieldData -> new SearchField(
                                         id + nestedFieldData.id(),
                                         fieldName + "." + nestedFieldData.path(),
-                                        nestedFieldData.fieldClass()))
+                                        nestedFieldData.fieldType()))
                                 .toList());
                     }
                 } else {
                     // Handle nested entities
-                    searchFieldDataList.addAll(createFromClass(fieldTypeWrapper).stream()
-                            .map(nestedFieldData -> new SearchFieldData(
+                    searchFieldList.addAll(createFromClass(fieldTypeWrapper).stream()
+                            .map(nestedFieldData -> new SearchField(
                                     id + nestedFieldData.id(),
                                     fieldName + "." + nestedFieldData.path(),
-                                    nestedFieldData.fieldClass()))
+                                    nestedFieldData.fieldType()))
                             .toList());
                 }
             }
         }
 
-        collectedSearchFields.put(entityClass, searchFieldDataList);
-        return searchFieldDataList;
+        collectedSearchFields.put(entityClass, searchFieldList);
+        return searchFieldList;
     }
 
     private Class<?> getGenericType(Field field) {

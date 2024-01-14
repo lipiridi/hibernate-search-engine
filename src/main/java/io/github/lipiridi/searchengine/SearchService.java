@@ -54,22 +54,22 @@ public class SearchService {
     }
 
     public <E> SearchResponse<E> search(
-            SearchRequest searchRequest, Class<E> entityClass, Collection<SearchFieldData> searchFieldData) {
-        return search(searchRequest, entityClass, searchFieldData, null);
+            SearchRequest searchRequest, Class<E> entityClass, Collection<SearchField> searchFields) {
+        return search(searchRequest, entityClass, searchFields, null);
     }
 
     public <E, M> SearchResponse<M> search(
             SearchRequest searchRequest,
             Class<E> entityClass,
-            Collection<SearchFieldData> searchFieldData,
+            Collection<SearchField> searchFields,
             @Nullable Function<E, M> mapper) {
-        Map<String, SearchFieldData> searchFieldMap =
-                searchFieldData.stream().collect(Collectors.toMap(SearchFieldData::id, Function.identity()));
+        Map<String, SearchField> searchFieldMap =
+                searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
         return search(searchRequest, entityClass, searchFieldMap, mapper);
     }
 
     public <E> SearchResponse<E> search(
-            SearchRequest searchRequest, Class<E> entityClass, Map<String, SearchFieldData> searchFieldMap) {
+            SearchRequest searchRequest, Class<E> entityClass, Map<String, SearchField> searchFieldMap) {
         return search(searchRequest, entityClass, searchFieldMap, null);
     }
 
@@ -77,7 +77,7 @@ public class SearchService {
     public <E, M> SearchResponse<M> search(
             SearchRequest searchRequest,
             Class<E> entityClass,
-            Map<String, SearchFieldData> searchFieldMap,
+            Map<String, SearchField> searchFieldMap,
             @Nullable Function<E, M> mapper) {
         List<E> entities = fetchEntities(searchRequest, searchFieldMap, entityClass);
         int totalNumber = totalNumber(searchRequest, searchFieldMap, entityClass);
@@ -90,7 +90,7 @@ public class SearchService {
     }
 
     public <E> List<E> fetchEntities(
-            SearchRequest searchRequest, Map<String, SearchFieldData> searchFieldMap, Class<E> entityClass) {
+            SearchRequest searchRequest, Map<String, SearchField> searchFieldMap, Class<E> entityClass) {
         validateSearchRequest(searchRequest, searchFieldMap);
 
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
@@ -109,7 +109,7 @@ public class SearchService {
     }
 
     private <E> int totalNumber(
-            SearchRequest searchRequest, Map<String, SearchFieldData> searchFieldMap, Class<E> entityClass) {
+            SearchRequest searchRequest, Map<String, SearchField> searchFieldMap, Class<E> entityClass) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
         Root<E> root = criteriaQuery.from(entityClass);
@@ -123,7 +123,7 @@ public class SearchService {
         return query.getSingleResult().intValue();
     }
 
-    private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchFieldData> searchFieldMap) {
+    private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
         int maxPageSize = searchEngineProperties.getMaxPageSize();
         if (searchRequest.size() > maxPageSize) {
             throw new DatabaseSearchEngineException(
@@ -138,15 +138,15 @@ public class SearchService {
                 .forEach(filter -> validateExistingSearchField(searchFieldMap, filter.field()));
     }
 
-    private void validateExistingSearchField(Map<String, SearchFieldData> searchFieldMap, String field) {
-        SearchFieldData searchFieldData = searchFieldMap.get(field);
-        if (searchFieldData == null) {
+    private void validateExistingSearchField(Map<String, SearchField> searchFieldMap, String field) {
+        SearchField searchField = searchFieldMap.get(field);
+        if (searchField == null) {
             throw new DatabaseSearchEngineException("Search field '%s' was not found!".formatted(field));
         }
     }
 
     private void addFilters(
-            Map<String, SearchFieldData> searchFieldMap,
+            Map<String, SearchField> searchFieldMap,
             SearchRequest searchRequest,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
@@ -199,72 +199,79 @@ public class SearchService {
 
         private final CriteriaBuilder builder;
         private final Root<?> root;
-        private final Map<String, SearchFieldData> searchFields;
+        private final Map<String, SearchField> searchFields;
 
         @Getter
         private Predicate predicate;
 
         @Override
         public void accept(Filter filter) {
-            SearchFieldData searchFieldData = searchFieldConverter.resolveSearchField(searchFields, filter);
+            SearchField searchField = searchFieldConverter.resolveSearchField(searchFields, filter);
 
             List<?> valueList = filter.value().stream()
-                    .map(originalValue -> searchFieldConverter.getConvertedValue(originalValue, searchFieldData))
+                    .map(originalValue -> searchFieldConverter.getConvertedValue(originalValue, searchField))
                     .toList();
             Object singleValue = valueList.getFirst();
 
             switch (filter.type()) {
-                case EQUAL -> predicate = builder.and(predicate, builder.equal(getPath(searchFieldData), singleValue));
+                case IS_NULL -> predicate = builder.and(predicate, builder.isNull(getPath(searchField)));
+                case IS_NOT_NULL -> predicate = builder.and(predicate, builder.isNotNull(getPath(searchField)));
+                case EQUAL -> predicate = builder.and(predicate, builder.equal(getPath(searchField), singleValue));
                 case NOT_EQUAL -> predicate =
-                        builder.and(predicate, builder.notEqual(getPath(searchFieldData), singleValue));
+                        builder.and(predicate, builder.notEqual(getPath(searchField), singleValue));
                 case IN -> predicate =
-                        builder.and(predicate, getPath(searchFieldData).in(valueList));
+                        builder.and(predicate, getPath(searchField).in(valueList));
                 case NOT_IN -> predicate = builder.and(
-                        predicate, getPath(searchFieldData).in(valueList).not());
-                case LIKE -> predicate =
-                        builder.and(predicate, builder.like(getPath(searchFieldData), "%" + singleValue + "%"));
-                case NOT_LIKE -> predicate =
-                        builder.and(predicate, builder.notLike(getPath(searchFieldData), "%" + singleValue + "%"));
-                case GREATER_THAN -> buildComparePredicate(GREATER_THAN, searchFieldData, singleValue);
-                case GREATER_THAN_OR_EQUAL -> buildComparePredicate(
-                        GREATER_THAN_OR_EQUAL, searchFieldData, singleValue);
-                case LESS_THAN -> buildComparePredicate(LESS_THAN, searchFieldData, singleValue);
-                case LESS_THAN_OR_EQUAL -> buildComparePredicate(LESS_THAN_OR_EQUAL, searchFieldData, singleValue);
+                        predicate, getPath(searchField).in(valueList).not());
+                case LIKE -> predicate = builder.and(
+                        predicate,
+                        builder.like(
+                                builder.lower(getPath(searchField)),
+                                "%" + singleValue.toString().toLowerCase() + "%"));
+                case NOT_LIKE -> predicate = builder.and(
+                        predicate,
+                        builder.notLike(
+                                builder.lower(getPath(searchField)),
+                                "%" + singleValue.toString().toLowerCase() + "%"));
+                case GREATER_THAN -> buildComparePredicate(GREATER_THAN, searchField, singleValue);
+                case GREATER_THAN_OR_EQUAL -> buildComparePredicate(GREATER_THAN_OR_EQUAL, searchField, singleValue);
+                case LESS_THAN -> buildComparePredicate(LESS_THAN, searchField, singleValue);
+                case LESS_THAN_OR_EQUAL -> buildComparePredicate(LESS_THAN_OR_EQUAL, searchField, singleValue);
             }
         }
 
-        private void buildComparePredicate(FilterType filterType, SearchFieldData searchFieldData, Object value) {
+        private void buildComparePredicate(FilterType filterType, SearchField searchField, Object value) {
             if (value instanceof Integer castedValue) {
-                buildComparePredicate(filterType, searchFieldData, castedValue);
+                buildComparePredicate(filterType, searchField, castedValue);
             }
             if (value instanceof Long castedValue) {
-                buildComparePredicate(filterType, searchFieldData, castedValue);
+                buildComparePredicate(filterType, searchField, castedValue);
             }
             if (value instanceof BigDecimal castedValue) {
-                buildComparePredicate(filterType, searchFieldData, castedValue);
+                buildComparePredicate(filterType, searchField, castedValue);
             }
             if (value instanceof Instant castedValue) {
-                buildComparePredicate(filterType, searchFieldData, castedValue);
+                buildComparePredicate(filterType, searchField, castedValue);
             }
         }
 
         private <K extends Comparable<K>> void buildComparePredicate(
-                FilterType filterType, SearchFieldData searchFieldData, K value) {
+                FilterType filterType, SearchField searchField, K value) {
             switch (filterType) {
                 case GREATER_THAN -> predicate =
-                        builder.and(predicate, builder.greaterThan(getPath(searchFieldData), value));
+                        builder.and(predicate, builder.greaterThan(getPath(searchField), value));
                 case GREATER_THAN_OR_EQUAL -> predicate =
-                        builder.and(predicate, builder.greaterThanOrEqualTo(getPath(searchFieldData), value));
-                case LESS_THAN -> predicate = builder.and(predicate, builder.lessThan(getPath(searchFieldData), value));
+                        builder.and(predicate, builder.greaterThanOrEqualTo(getPath(searchField), value));
+                case LESS_THAN -> predicate = builder.and(predicate, builder.lessThan(getPath(searchField), value));
                 case LESS_THAN_OR_EQUAL -> predicate =
-                        builder.and(predicate, builder.lessThanOrEqualTo(getPath(searchFieldData), value));
+                        builder.and(predicate, builder.lessThanOrEqualTo(getPath(searchField), value));
                 default -> throw new DatabaseSearchEngineException(
                         String.format("Can't build compare predicate for filter type %s", filterType));
             }
         }
 
-        private <Y> Path<Y> getPath(SearchFieldData searchFieldData) {
-            return SearchService.this.getPath(root, searchFieldData.path());
+        private <Y> Path<Y> getPath(SearchField searchField) {
+            return SearchService.this.getPath(root, searchField.path());
         }
     }
 }
