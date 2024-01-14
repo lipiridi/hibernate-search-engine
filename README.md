@@ -1,17 +1,31 @@
 # Hibernate Search Engine
 
-The Hibernate Search Engine Java Library is a versatile tool designed for seamless entity searches within databases.
-Tailored for Java developers, this library simplifies the process of querying databases by any field, offering
-convenient pagination support.
-____
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.lipiridi/hibernate-search-engine)](https://search.maven.org/artifact/io.github.lipiridi/hibernate-search-engine)
 
-### Prerequisites
+The Hibernate Search Engine is a powerful Java library designed to simplify the implementation of search functionality,
+filtering, sorting, and pagination in Java projects using the Hibernate framework. With minimal configuration,
+developers can seamlessly integrate search capabilities into their applications, enhancing the user experience and
+improving data retrieval efficiency.
 
-- Java 21
+## Features
 
-____
+- **Annotation-based Searchable Entities:** Simply annotate the fields of your entity classes with `@Searchable` to
+  enable
+  search functionality.
 
-### Usage
+
+- **SearchService Integration:** Inject the SearchService into your code, and effortlessly perform searches by
+  calling `searchService.search(searchRequest, Entity.class)`
+
+
+- **Mapping Support:** The library supports mapping search results to another class, such as a Data Transfer Object
+  (DTO), directly within the service. This enables efficient transformation of data for various use cases.
+
+## Getting Started
+
+### Installation
+
+To include this library in your project, add the following dependency:
 
 Gradle:
 
@@ -26,6 +40,61 @@ Maven:
 <dependency>
     <groupId>io.github.lipiridi</groupId>
     <artifactId>hibernate-search-engine</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0</version> <!-- Replace with the latest version -->
 </dependency>
 ```
+
+### Configuration
+
+Customize the library's behavior with the help of configuration properties.
+
+- **Max page size** - limit the search request in order to prohibit large queries to the database
+- **Naming convention** - choose how to generate field names that uses client for searching (in case when you use
+  @Searchable annotation)
+
+```properties
+spring.jpa.hibernate.search-engine.max-page-size=100
+spring.jpa.hibernate.search-engine.naming-convention=camel_case
+```
+
+## Sample search request
+
+Here's an example of the search request JSON body output:
+
+```json
+{
+  "page": "1",
+  "size": "100",
+  "filters": [
+    {
+      "field": "description",
+      "type": "LIKE",
+      "value": [
+        "hello"
+      ]
+    },
+    {
+      "field": "id",
+      "type": "IN",
+      "value": [
+        "16",
+        "25"
+      ]
+    }
+  ],
+  "sorts": [
+    {
+      "field": "createdAt",
+      "order": "ASCENDING"
+    },
+    {
+      "field": "name",
+      "order": "DESCENDING"
+    }
+  ]
+}
+```
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
