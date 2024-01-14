@@ -98,8 +98,7 @@ public class SearchService {
         Root<E> root = criteriaQuery.from(entityClass);
 
         addFilters(searchFieldMap, searchRequest, criteriaBuilder, criteriaQuery, root);
-
-        addSorts(searchRequest, criteriaBuilder, criteriaQuery, root);
+        addSorts(searchFieldMap, searchRequest, criteriaBuilder, criteriaQuery, root);
 
         TypedQuery<E> query = entityManager.createQuery(criteriaQuery);
         query.setFirstResult((searchRequest.page() - 1) * searchRequest.size());
@@ -165,6 +164,7 @@ public class SearchService {
     }
 
     private void addSorts(
+            Map<String, SearchField> searchFieldMap,
             SearchRequest searchRequest,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
@@ -175,18 +175,22 @@ public class SearchService {
         }
 
         List<Order> orders = sorts.stream()
-                .map(sort -> sort.order() == SortDirection.DESCENDING
-                        ? criteriaBuilder.desc(getPath(root, sort.field()))
-                        : criteriaBuilder.asc(getPath(root, sort.field())))
+                .map(sort -> {
+                    String field = sort.field();
+                    SearchField searchField = searchFieldMap.get(field);
+                    return sort.order() == SortDirection.DESCENDING
+                            ? criteriaBuilder.desc(getPath(root, searchField))
+                            : criteriaBuilder.asc(getPath(root, searchField));
+                })
                 .toList();
 
         criteriaQuery.orderBy(orders);
     }
 
-    private <Y> Path<Y> getPath(Root<?> root, String stringPath) {
-        String[] fields = stringPath.split("\\.");
+    private <Y> Path<Y> getPath(Root<?> root, SearchField searchField) {
+        String[] fields = searchField.path().split("\\.");
 
-        Path<Y> path = root.get(fields[0]);
+        Path<Y> path = searchField.elementCollection() ? root.join(fields[0]) : root.get(fields[0]);
         for (int i = 1; i < fields.length; i++) {
             path = path.get(fields[i]);
         }
@@ -271,7 +275,7 @@ public class SearchService {
         }
 
         private <Y> Path<Y> getPath(SearchField searchField) {
-            return SearchService.this.getPath(root, searchField.path());
+            return SearchService.this.getPath(root, searchField);
         }
     }
 }

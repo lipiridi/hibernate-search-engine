@@ -1,6 +1,9 @@
 package io.github.lipiridi.searchengine;
 
 import io.github.lipiridi.searchengine.util.ReflectionUtils;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
@@ -39,14 +42,16 @@ public class SearchFieldCreator {
                 String id = searchableAnnotation.value().isEmpty() ? fieldName : searchableAnnotation.value();
                 Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
 
-                if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
-                    searchFieldList.add(new SearchField(id, fieldName, fieldTypeWrapper));
-                } else if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
+                if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
                     Class<?> genericType = getGenericType(field);
-                    if (genericType != null
+                    if (genericType == null) {
+                        continue;
+                    }
+
+                    if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
-                        searchFieldList.add(new SearchField(id, fieldName, genericType));
-                    } else if (genericType != null) {
+                        searchFieldList.add(new SearchField(id, fieldName, genericType, true));
+                    } else if (field.isAnnotationPresent(OneToMany.class)) {
                         // Handle nested entities within collections
                         searchFieldList.addAll(createFromClass(genericType).stream()
                                 .map(nestedFieldData -> new SearchField(
@@ -56,13 +61,17 @@ public class SearchFieldCreator {
                                 .toList());
                     }
                 } else {
-                    // Handle nested entities
-                    searchFieldList.addAll(createFromClass(fieldTypeWrapper).stream()
-                            .map(nestedFieldData -> new SearchField(
-                                    id + nestedFieldData.id(),
-                                    fieldName + "." + nestedFieldData.path(),
-                                    nestedFieldData.fieldType()))
-                            .toList());
+                    if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
+                        searchFieldList.add(new SearchField(id, fieldName, fieldTypeWrapper));
+                    } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                        // Handle nested entities
+                        searchFieldList.addAll(createFromClass(fieldTypeWrapper).stream()
+                                .map(nestedFieldData -> new SearchField(
+                                        id + nestedFieldData.id(),
+                                        fieldName + "." + nestedFieldData.path(),
+                                        nestedFieldData.fieldType()))
+                                .toList());
+                    }
                 }
             }
         }
