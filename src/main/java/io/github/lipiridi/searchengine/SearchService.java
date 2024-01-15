@@ -4,6 +4,8 @@ import static io.github.lipiridi.searchengine.FilterType.GREATER_THAN;
 import static io.github.lipiridi.searchengine.FilterType.GREATER_THAN_OR_EQUAL;
 import static io.github.lipiridi.searchengine.FilterType.LESS_THAN;
 import static io.github.lipiridi.searchengine.FilterType.LESS_THAN_OR_EQUAL;
+import static io.github.lipiridi.searchengine.util.FieldConvertUtils.getConvertedValue;
+import static io.github.lipiridi.searchengine.util.FieldConvertUtils.resolveSearchField;
 
 import io.github.lipiridi.searchengine.config.SearchEngineProperties;
 import io.github.lipiridi.searchengine.dto.Filter;
@@ -37,7 +39,6 @@ public class SearchService {
     private final EntityManager entityManager;
     private final SearchEngineProperties searchEngineProperties;
     private final SearchFieldCreator searchFieldCreator;
-    private final SearchFieldConverter searchFieldConverter = new SearchFieldConverter();
 
     public SearchService(EntityManager entityManager, SearchEngineProperties searchEngineProperties) {
         this.entityManager = entityManager;
@@ -84,7 +85,7 @@ public class SearchService {
             Map<String, SearchField> searchFieldMap,
             @Nullable Function<E, M> mapper) {
         List<E> entities = fetchEntities(searchRequest, searchFieldMap, entityClass);
-        int totalNumber = totalNumber(searchRequest, searchFieldMap, entityClass);
+        int totalNumber = totalElements(searchRequest, searchFieldMap, entityClass);
 
         List<M> mappedEntities = mapper == null
                 ? (List<M>) entities
@@ -111,7 +112,7 @@ public class SearchService {
         return query.getResultList();
     }
 
-    private <E> int totalNumber(
+    private <E> int totalElements(
             SearchRequest searchRequest, Map<String, SearchField> searchFieldMap, Class<E> entityClass) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
@@ -226,10 +227,10 @@ public class SearchService {
 
         @Override
         public void accept(Filter filter) {
-            SearchField searchField = searchFieldConverter.resolveSearchField(searchFields, filter);
+            SearchField searchField = resolveSearchField(searchFields, filter);
 
             List<?> valueList = filter.value().stream()
-                    .map(originalValue -> searchFieldConverter.getConvertedValue(originalValue, searchField))
+                    .map(originalValue -> getConvertedValue(originalValue, searchField))
                     .toList();
             Object singleValue = valueList.getFirst();
 
