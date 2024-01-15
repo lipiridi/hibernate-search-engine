@@ -23,7 +23,7 @@ public class SearchFieldConverter {
     public SearchField resolveSearchField(Map<String, SearchField> searchFields, Filter filter) {
         SearchField searchField = searchFields.get(filter.field());
         if (!allowedFiltersByClass.get(getCastClass(searchField.fieldType())).contains(filter.type())) {
-            throw new DatabaseSearchEngineException("Not allowed filter type for field %s".formatted(filter.field()));
+            throw new HibernateSearchEngineException("Not allowed filter type for field %s".formatted(filter.field()));
         }
 
         return searchField;
@@ -33,13 +33,13 @@ public class SearchFieldConverter {
         Class<?> fieldType = searchField.fieldType();
         var convertFunction = convertFunction(fieldType);
         if (convertFunction == null) {
-            throw new DatabaseSearchEngineException(
+            throw new HibernateSearchEngineException(
                     "Unable to find convert function for field type %s".formatted(fieldType));
         }
         try {
             return convertFunction.apply(originalValue);
         } catch (Exception e) {
-            throw new DatabaseSearchEngineException(
+            throw new HibernateSearchEngineException(
                     "Unable to convert search field %s with value %s".formatted(searchField.id(), originalValue));
         }
     }

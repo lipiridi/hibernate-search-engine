@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -128,7 +129,7 @@ public class SearchService {
     private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
         int maxPageSize = searchEngineProperties.getMaxPageSize();
         if (searchRequest.size() > maxPageSize) {
-            throw new DatabaseSearchEngineException(
+            throw new HibernateSearchEngineException(
                     "The search request is limited to %s results".formatted(maxPageSize));
         }
 
@@ -143,7 +144,10 @@ public class SearchService {
     private void validateExistingSearchField(Map<String, SearchField> searchFieldMap, String field) {
         SearchField searchField = searchFieldMap.get(field);
         if (searchField == null) {
-            throw new DatabaseSearchEngineException("Search field '%s' was not found!".formatted(field));
+            Set<String> existingFields =
+                    searchFieldMap.values().stream().map(SearchField::id).collect(Collectors.toSet());
+            throw new HibernateSearchEngineException(
+                    "Search field '%s' was not found! Existing fields: %s".formatted(field, existingFields));
         }
     }
 
@@ -281,7 +285,7 @@ public class SearchService {
                 case LESS_THAN -> predicate = builder.and(predicate, builder.lessThan(getPath(searchField), value));
                 case LESS_THAN_OR_EQUAL -> predicate =
                         builder.and(predicate, builder.lessThanOrEqualTo(getPath(searchField), value));
-                default -> throw new DatabaseSearchEngineException(
+                default -> throw new HibernateSearchEngineException(
                         String.format("Can't build compare predicate for filter type %s", filterType));
             }
         }

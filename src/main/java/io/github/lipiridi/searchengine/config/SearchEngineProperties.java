@@ -11,12 +11,15 @@ public class SearchEngineProperties {
     public int getMaxPageSize() {
         return maxPageSize;
     }
+
     public void setMaxPageSize(int maxPageSize) {
         this.maxPageSize = maxPageSize;
     }
+
     public NamingConvention getNamingConvention() {
         return namingConvention;
     }
+
     public void setNamingConvention(NamingConvention namingConvention) {
         this.namingConvention = namingConvention;
     }
