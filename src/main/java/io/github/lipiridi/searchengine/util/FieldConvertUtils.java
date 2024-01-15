@@ -32,9 +32,13 @@ public class FieldConvertUtils {
         FilterType filterType = filter.type();
         Set<FilterType> allowedFilterTypes = searchField.filterTypes();
 
-        if (!allowedFiltersByClass.get(getCastClass(searchField.fieldType())).contains(filterType)
+        Set<FilterType> existingFiltersByClass = allowedFiltersByClass.get(getCastClass(searchField.fieldType()));
+        if (!existingFiltersByClass.contains(filterType)
                 || (!CollectionUtils.isEmpty(allowedFilterTypes) && !allowedFilterTypes.contains(filterType))) {
-            throw new HibernateSearchEngineException("Not allowed filter type for field %s".formatted(filter.field()));
+            var availableFilters =
+                    CollectionUtils.isEmpty(allowedFilterTypes) ? existingFiltersByClass : allowedFilterTypes;
+            throw new HibernateSearchEngineException("Not allowed filter type for field %s. Available filters: %s"
+                    .formatted(filter.field(), availableFilters));
         }
 
         return searchField;

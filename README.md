@@ -103,11 +103,11 @@ Here's an example of the search request JSON body output:
   "sorts": [
     {
       "field": "createdAt",
-      "order": "ASCENDING"
+      "direction": "ASCENDING"
     },
     {
       "field": "name",
-      "order": "DESCENDING"
+      "direction": "DESCENDING"
     }
   ]
 }
