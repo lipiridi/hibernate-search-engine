@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.util.CollectionUtils;
 
 public class FieldConvertUtils {
 
@@ -28,7 +29,11 @@ public class FieldConvertUtils {
 
     public static SearchField resolveSearchField(Map<String, SearchField> searchFields, Filter filter) {
         SearchField searchField = searchFields.get(filter.field());
-        if (!allowedFiltersByClass.get(getCastClass(searchField.fieldType())).contains(filter.type())) {
+        FilterType filterType = filter.type();
+        Set<FilterType> allowedFilterTypes = searchField.filterTypes();
+
+        if (!allowedFiltersByClass.get(getCastClass(searchField.fieldType())).contains(filterType)
+                || (!CollectionUtils.isEmpty(allowedFilterTypes) && !allowedFilterTypes.contains(filterType))) {
             throw new HibernateSearchEngineException("Not allowed filter type for field %s".formatted(filter.field()));
         }
 

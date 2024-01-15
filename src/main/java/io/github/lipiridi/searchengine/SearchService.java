@@ -186,7 +186,7 @@ public class SearchService {
                 .map(sort -> {
                     String field = sort.field();
                     SearchField searchField = searchFieldMap.get(field);
-                    return sort.order() == SortDirection.DESCENDING
+                    return sort.direction() == SortDirection.DESCENDING
                             ? criteriaBuilder.desc(getPath(root, searchField))
                             : criteriaBuilder.asc(getPath(root, searchField));
                 })

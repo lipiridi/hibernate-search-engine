@@ -9,6 +9,7 @@ import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.OneToMany;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,6 +62,8 @@ public class SearchFieldCreator {
                 Searchable searchableAnnotation = field.getAnnotation(Searchable.class);
                 String fieldName = field.getName();
                 String id = searchableAnnotation.value().isEmpty() ? fieldName : searchableAnnotation.value();
+                Set<FilterType> filterTypes =
+                        Arrays.stream(searchableAnnotation.filterTypes()).collect(Collectors.toSet());
                 Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
 
                 // Prevent stack overflow
@@ -76,13 +79,13 @@ public class SearchFieldCreator {
 
                     if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
-                        searchFields.add(new SearchField(formatId(id), fieldName, genericType, true));
+                        searchFields.add(new SearchField(formatId(id), fieldName, genericType, true, filterTypes));
                     } else if (field.isAnnotationPresent(OneToMany.class)) {
                         searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, entityClass));
                     }
                 } else {
                     if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
-                        searchFields.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper));
+                        searchFields.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper, filterTypes));
                     } else if (field.isAnnotationPresent(ManyToOne.class)) {
                         searchFields.addAll(
                                 createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, entityClass));
@@ -97,10 +100,12 @@ public class SearchFieldCreator {
     private List<SearchField> createNestedEntitySearchFields(
             String id, String fieldName, Class<?> fieldType, Class<?> parentClass) {
         return createFromClass(fieldType, parentClass).stream()
-                .map(nestedFieldData -> new SearchField(
-                        formatId(id + capitalize(nestedFieldData.id())),
-                        fieldName + "." + nestedFieldData.path(),
-                        nestedFieldData.fieldType()))
+                .map(nestedSearchField -> new SearchField(
+                        formatId(id + capitalize(nestedSearchField.id())),
+                        fieldName + "." + nestedSearchField.path(),
+                        nestedSearchField.fieldType(),
+                        nestedSearchField.elementCollection(),
+                        nestedSearchField.filterTypes()))
                 .collect(Collectors.toList());
     }
 

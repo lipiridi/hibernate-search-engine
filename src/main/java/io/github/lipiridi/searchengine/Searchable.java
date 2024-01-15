@@ -18,4 +18,6 @@ public @interface Searchable {
 
     @AliasFor("value")
     String name() default "";
+
+    FilterType[] filterTypes() default {};
 }
