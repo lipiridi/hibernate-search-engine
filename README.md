@@ -57,6 +57,24 @@ spring.jpa.hibernate.search-engine.max-page-size=100
 spring.jpa.hibernate.search-engine.naming-convention=camel_case
 ```
 
+## Usage example
+
+```java
+
+@RestController
+@RequiredArgsConstructor
+public class TestController {
+
+    private final SearchService searchService;
+    private final TestMapper testMapper;
+
+    @PostMapping("/search")
+    public SearchResponse<TestDto> search(@Valid @RequestBody SearchRequest searchRequest) {
+        return searchService.search(searchRequest, TestEntity.class, testMapper::toDto);
+    }
+}
+```
+
 ## Sample search request
 
 Here's an example of the search request JSON body output:
