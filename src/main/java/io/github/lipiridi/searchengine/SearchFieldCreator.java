@@ -3,10 +3,7 @@ package io.github.lipiridi.searchengine;
 import io.github.lipiridi.searchengine.config.SearchEngineProperties;
 import io.github.lipiridi.searchengine.util.ReflectionUtils;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.*;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +45,10 @@ public class SearchFieldCreator {
         return searchFields;
     }
 
+    public Map<Class<?>, List<SearchField>> getCollectedSearchFields() {
+        return Collections.unmodifiableMap(collectedSearchFields);
+    }
+
     private List<SearchField> createFromClass(Class<?> entityClass, @Nullable Class<?> parentClass) {
         List<SearchField> searchFields = new ArrayList<>();
 
@@ -80,7 +81,8 @@ public class SearchFieldCreator {
                     if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
                         searchFields.add(new SearchField(formatId(id), fieldName, genericType, true, filterTypes));
-                    } else if (field.isAnnotationPresent(OneToMany.class)) {
+                    } else if (field.isAnnotationPresent(OneToMany.class)
+                            || field.isAnnotationPresent(ManyToMany.class)) {
                         searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, entityClass));
                     }
                 } else {

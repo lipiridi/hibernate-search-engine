@@ -112,6 +112,14 @@ public class SearchService {
         return query.getResultList();
     }
 
+    public Map<Class<?>, List<SearchField>> getCollectedSearchFields() {
+        return searchFieldCreator.getCollectedSearchFields();
+    }
+
+    public @Nullable List<SearchField> getCollectedSearchFields(Class<?> entityClass) {
+        return getCollectedSearchFields().get(entityClass);
+    }
+
     private <E> int totalElements(
             SearchRequest searchRequest, Map<String, SearchField> searchFieldMap, Class<E> entityClass) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
