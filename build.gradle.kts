@@ -8,6 +8,7 @@ plugins {
     signing
 
     id("com.diffplug.spotless") version "6.23.3"
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0-rc-1"
 }
 
 group = "io.github.lipiridi"
@@ -78,24 +79,13 @@ publishing {
             }
         }
     }
+}
 
+nexusPublishing {
     repositories {
-        maven {
-            name = "SnapshotOSSRH"
-            url = URI("https://s01.oss.sonatype.org/content/repositories/snapshots")
-            credentials {
-                username = properties("ossrhUsername")
-                password = properties("ossrhPassword")
-            }
-        }
-
-        maven {
-            name = "OSSRH"
-            url = URI("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
-            credentials {
-                username = properties("ossrhUsername")
-                password = properties("ossrhPassword")
-            }
+        sonatype {  //only for users registered in Sonatype after 24 Feb 2021
+            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
         }
     }
 }
