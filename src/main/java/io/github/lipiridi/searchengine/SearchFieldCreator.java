@@ -65,7 +65,7 @@ public class SearchFieldCreator {
                 String id = searchableAnnotation.value().isEmpty() ? fieldName : searchableAnnotation.value();
                 Set<FilterType> filterTypes =
                         Arrays.stream(searchableAnnotation.filterTypes()).collect(Collectors.toSet());
-                Class<?> fieldTypeWrapper = ReflectionUtils.getFieldTypeWrapper(field.getType());
+                Class<?> fieldTypeWrapper = ReflectionUtils.getPrimitiveWrapper(field.getType());
 
                 // Prevent stack overflow
                 if (fieldTypeWrapper.equals(entityClass) || fieldTypeWrapper.equals(parentClass)) {
@@ -79,16 +79,17 @@ public class SearchFieldCreator {
                     }
 
                     if (field.isAnnotationPresent(ElementCollection.class)
-                            && SUPPORTED_CLASSES.contains(ReflectionUtils.getFieldTypeWrapper(genericType))) {
+                            && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
                         searchFields.add(new SearchField(formatId(id), fieldName, genericType, true, filterTypes));
                     } else if (field.isAnnotationPresent(OneToMany.class)
                             || field.isAnnotationPresent(ManyToMany.class)) {
                         searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, entityClass));
                     }
                 } else {
-                    if (SUPPORTED_CLASSES.contains(fieldTypeWrapper)) {
+                    if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
                         searchFields.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper, filterTypes));
-                    } else if (field.isAnnotationPresent(ManyToOne.class)) {
+                    } else if (field.isAnnotationPresent(ManyToOne.class)
+                            || field.isAnnotationPresent(OneToOne.class)) {
                         searchFields.addAll(
                                 createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, entityClass));
                     }

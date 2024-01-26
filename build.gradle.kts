@@ -1,5 +1,3 @@
-import java.net.URI
-
 fun properties(key: String) = project.findProperty(key)?.toString() ?: ""
 
 plugins {
@@ -7,12 +5,12 @@ plugins {
     `maven-publish`
     signing
 
-    id("com.diffplug.spotless") version "6.23.3"
+    id("com.diffplug.spotless") version "6.25.0"
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0-rc-1"
 }
 
 group = "io.github.lipiridi"
-version = "1.0.2"
+version = "1.0.3"
 
 java {
     withSourcesJar()
@@ -30,7 +28,7 @@ repositories {
 }
 
 dependencies {
-    val springBootVersion = "3.2.1"
+    val springBootVersion = "3.2.2"
 
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")

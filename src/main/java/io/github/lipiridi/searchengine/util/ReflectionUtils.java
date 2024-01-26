@@ -29,9 +29,9 @@ public final class ReflectionUtils {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 
-    public static Class<?> getFieldTypeWrapper(Class<?> fieldType) {
+    public static Class<?> getPrimitiveWrapper(Class<?> fieldType) {
         if (!fieldType.isPrimitive()) {
-            return getCastClass(fieldType);
+            return fieldType;
         }
 
         return switch (fieldType.getTypeName()) {
