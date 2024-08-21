@@ -4,8 +4,8 @@ import io.github.lipiridi.searchengine.util.FilterUtils;
 import java.util.List;
 
 public enum FilterType {
-    IS_NULL(FilterUtils.getCommonSupportedClasses()),
-    IS_NOT_NULL(FilterUtils.getCommonSupportedClasses()),
+    IS_NULL(FilterUtils.getCommonSupportedClasses(), true),
+    IS_NOT_NULL(FilterUtils.getCommonSupportedClasses(), true),
     EQUAL(FilterUtils.getCommonSupportedClasses()),
     NOT_EQUAL(FilterUtils.getCommonSupportedClasses()),
     IN(FilterUtils.getCommonSupportedClasses()),
@@ -18,12 +18,22 @@ public enum FilterType {
     LESS_THAN_OR_EQUAL(FilterUtils.getComparableSupportedClasses());
 
     private final List<Class<?>> supportedClasses;
+    private final boolean nullAllowed;
 
-    private FilterType(List<Class<?>> supportedClasses) {
+    FilterType(List<Class<?>> supportedClasses) {
+        this(supportedClasses, false);
+    }
+
+    FilterType(List<Class<?>> supportedClasses, boolean nullAllowed) {
         this.supportedClasses = supportedClasses;
+        this.nullAllowed = nullAllowed;
     }
 
     public List<Class<?>> getSupportedClasses() {
         return this.supportedClasses;
+    }
+
+    public boolean isNullAllowed() {
+        return nullAllowed;
     }
 }

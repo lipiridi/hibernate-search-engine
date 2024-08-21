@@ -6,15 +6,19 @@ plugins {
     signing
 
     id("com.diffplug.spotless") version "6.25.0"
-    id("io.github.gradle-nexus.publish-plugin") version "2.0.0-rc-1"
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
 }
 
 group = "io.github.lipiridi"
-version = "1.0.3"
+version = "1.0.4-SNAPSHOT"
 
 java {
     withSourcesJar()
     withJavadocJar()
+
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 configurations {
@@ -28,15 +32,11 @@ repositories {
 }
 
 dependencies {
-    val springBootVersion = "3.2.2"
+    val springBootVersion = "3.3.2"
 
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
     implementation("org.springframework.boot:spring-boot-starter-validation:${springBootVersion}")
-}
-
-tasks.withType<Test> {
-    useJUnitPlatform()
 }
 
 tasks.withType<Javadoc> {

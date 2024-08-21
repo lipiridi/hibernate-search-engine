@@ -32,8 +32,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.hibernate.query.SortDirection;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+@Transactional(readOnly = true)
 public class SearchService {
 
     private final EntityManager entityManager;
@@ -52,15 +54,20 @@ public class SearchService {
         return search(searchRequest, entityClass, searchFields);
     }
 
+    public <E> SearchResponse<E> search(
+            SearchRequest searchRequest, Class<E> entityClass, Collection<SearchField> searchFields) {
+        return search(searchRequest, entityClass, searchFields, null);
+    }
+
+    public <E> SearchResponse<E> search(
+            SearchRequest searchRequest, Class<E> entityClass, Map<String, SearchField> searchFieldMap) {
+        return search(searchRequest, entityClass, searchFieldMap, null);
+    }
+
     public <E, M> SearchResponse<M> search(
             SearchRequest searchRequest, Class<E> entityClass, @Nullable Function<E, M> mapper) {
         var searchFields = searchFieldCreator.createFromClass(entityClass);
         return search(searchRequest, entityClass, searchFields, mapper);
-    }
-
-    public <E> SearchResponse<E> search(
-            SearchRequest searchRequest, Class<E> entityClass, Collection<SearchField> searchFields) {
-        return search(searchRequest, entityClass, searchFields, null);
     }
 
     public <E, M> SearchResponse<M> search(
@@ -73,19 +80,14 @@ public class SearchService {
         return search(searchRequest, entityClass, searchFieldMap, mapper);
     }
 
-    public <E> SearchResponse<E> search(
-            SearchRequest searchRequest, Class<E> entityClass, Map<String, SearchField> searchFieldMap) {
-        return search(searchRequest, entityClass, searchFieldMap, null);
-    }
-
     @SuppressWarnings("unchecked")
     public <E, M> SearchResponse<M> search(
             SearchRequest searchRequest,
             Class<E> entityClass,
             Map<String, SearchField> searchFieldMap,
             @Nullable Function<E, M> mapper) {
-        List<E> entities = fetchEntities(searchRequest, searchFieldMap, entityClass);
-        int totalNumber = totalElements(searchRequest, searchFieldMap, entityClass);
+        List<E> entities = fetchEntities(searchRequest, entityClass, searchFieldMap);
+        int totalNumber = totalElements(searchRequest, entityClass, searchFieldMap);
 
         List<M> mappedEntities = mapper == null
                 ? (List<M>) entities
@@ -95,12 +97,13 @@ public class SearchService {
     }
 
     public <E> List<E> fetchEntities(
-            SearchRequest searchRequest, Map<String, SearchField> searchFieldMap, Class<E> entityClass) {
+            SearchRequest searchRequest, Class<E> entityClass, Map<String, SearchField> searchFieldMap) {
         validateSearchRequest(searchRequest, searchFieldMap);
 
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
         Root<E> root = criteriaQuery.from(entityClass);
+        criteriaQuery.distinct(true);
 
         addFilters(searchFieldMap, searchRequest, criteriaBuilder, criteriaQuery, root);
         addSorts(searchFieldMap, searchRequest, criteriaBuilder, criteriaQuery, root);
@@ -112,27 +115,39 @@ public class SearchService {
         return query.getResultList();
     }
 
-    public Map<Class<?>, List<SearchField>> getCollectedSearchFields() {
-        return searchFieldCreator.getCollectedSearchFields();
+    public <E> int totalElements(SearchRequest searchRequest, Class<E> entityClass) {
+        var searchFields = searchFieldCreator.createFromClass(entityClass);
+        return totalElements(searchRequest, entityClass, searchFields);
     }
 
-    public @Nullable List<SearchField> getCollectedSearchFields(Class<?> entityClass) {
-        return getCollectedSearchFields().get(entityClass);
+    public <E> int totalElements(
+            SearchRequest searchRequest, Class<E> entityClass, Collection<SearchField> searchFields) {
+        Map<String, SearchField> searchFieldMap =
+                searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
+        return totalElements(searchRequest, entityClass, searchFieldMap);
     }
 
-    private <E> int totalElements(
-            SearchRequest searchRequest, Map<String, SearchField> searchFieldMap, Class<E> entityClass) {
+    public <E> int totalElements(
+            SearchRequest searchRequest, Class<E> entityClass, Map<String, SearchField> searchFieldMap) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
         Root<E> root = criteriaQuery.from(entityClass);
 
-        criteriaQuery.select(criteriaBuilder.count(root));
+        criteriaQuery.select(criteriaBuilder.countDistinct(root));
 
         addFilters(searchFieldMap, searchRequest, criteriaBuilder, criteriaQuery, root);
 
         TypedQuery<Long> query = entityManager.createQuery(criteriaQuery);
 
         return query.getSingleResult().intValue();
+    }
+
+    public Map<Class<?>, List<SearchField>> getCollectedSearchFields() {
+        return searchFieldCreator.getCollectedSearchFields();
+    }
+
+    public @Nullable List<SearchField> getCollectedSearchFields(Class<?> entityClass) {
+        return getCollectedSearchFields().get(entityClass);
     }
 
     private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
@@ -237,12 +252,16 @@ public class SearchService {
         public void accept(Filter filter) {
             SearchField searchField = resolveSearchField(searchFields, filter);
 
-            List<?> valueList = filter.value().stream()
-                    .map(originalValue -> getConvertedValue(originalValue, searchField))
-                    .toList();
-            Object singleValue = valueList.getFirst();
+            FilterType filterType = filter.type();
 
-            switch (filter.type()) {
+            List<?> valueList = filterType.isNullAllowed()
+                    ? null
+                    : filter.value().stream()
+                            .map(originalValue -> getConvertedValue(originalValue, searchField))
+                            .toList();
+            Object singleValue = filterType.isNullAllowed() ? null : valueList.getFirst();
+
+            switch (filterType) {
                 case IS_NULL -> predicate = builder.and(predicate, builder.isNull(getPath(searchField)));
                 case IS_NOT_NULL -> predicate = builder.and(predicate, builder.isNotNull(getPath(searchField)));
                 case EQUAL -> predicate = builder.and(predicate, builder.equal(getPath(searchField), singleValue));
@@ -253,20 +272,18 @@ public class SearchService {
                 case NOT_IN -> predicate = builder.and(
                         predicate, getPath(searchField).in(valueList).not());
                 case LIKE -> predicate = builder.and(
-                        predicate,
-                        builder.like(
-                                builder.lower(getPath(searchField)),
-                                "%" + singleValue.toString().toLowerCase() + "%"));
+                        predicate, builder.like(builder.lower(getPath(searchField)), getLikeValue(singleValue)));
                 case NOT_LIKE -> predicate = builder.and(
-                        predicate,
-                        builder.notLike(
-                                builder.lower(getPath(searchField)),
-                                "%" + singleValue.toString().toLowerCase() + "%"));
+                        predicate, builder.notLike(builder.lower(getPath(searchField)), getLikeValue(singleValue)));
                 case GREATER_THAN -> buildComparePredicate(GREATER_THAN, searchField, singleValue);
                 case GREATER_THAN_OR_EQUAL -> buildComparePredicate(GREATER_THAN_OR_EQUAL, searchField, singleValue);
                 case LESS_THAN -> buildComparePredicate(LESS_THAN, searchField, singleValue);
                 case LESS_THAN_OR_EQUAL -> buildComparePredicate(LESS_THAN_OR_EQUAL, searchField, singleValue);
             }
+        }
+
+        private String getLikeValue(@Nullable Object singleValue) {
+            return singleValue == null ? "" : "%" + singleValue.toString().toLowerCase() + "%";
         }
 
         private void buildComparePredicate(FilterType filterType, SearchField searchField, Object value) {
