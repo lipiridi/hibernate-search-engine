@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "io.github.lipiridi"
-version = "1.0.4-SNAPSHOT"
+version = "1.0.4"
 
 java {
     withSourcesJar()
