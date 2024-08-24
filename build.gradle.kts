@@ -1,3 +1,5 @@
+import java.util.*
+
 fun properties(key: String) = project.findProperty(key)?.toString() ?: ""
 
 plugins {
@@ -6,6 +8,7 @@ plugins {
     signing
 
     id("com.diffplug.spotless") version "6.25.0"
+    id("tech.yanand.maven-central-publish") version "1.2.0"
 }
 
 group = "io.github.lipiridi"
@@ -76,10 +79,32 @@ publishing {
             }
         }
     }
+
+    repositories {
+        maven {
+            name = "Local"
+            url = layout.buildDirectory.dir("repos/bundles").get().asFile.toURI()
+        }
+    }
 }
 
 signing {
     sign(publishing.publications)
+}
+
+mavenCentral {
+    repoDir.set(layout.buildDirectory.dir("repos/bundles"))
+    // Token for Publisher API calls obtained from Sonatype official,
+    // it should be Base64 encoded of "username:password".
+    val username = properties("mavenCentralUsername")
+    val password = properties("mavenCentralPassword")
+    val toEncode = "$username:$password"
+    val encodedAuthToken = Base64.getEncoder().encodeToString(toEncode.toByteArray())
+
+    authToken.set(encodedAuthToken)
+    // Whether the upload should be automatically published or not. Use 'USER_MANAGED' if you wish to do this manually.
+    // This property is optional and defaults to 'AUTOMATIC'.
+    publishingType.set("USER_MANAGED")
 }
 
 tasks.jar {
