@@ -30,7 +30,7 @@ To include this library in your project, add the following dependency:
 Gradle:
 
 ```kotlin
-implementation("io.github.lipiridi:hibernate-search-engine:1.0.0")
+implementation("io.github.lipiridi:hibernate-search-engine:1.1.0")
 ```
 
 Maven:
@@ -40,7 +40,7 @@ Maven:
 <dependency>
     <groupId>io.github.lipiridi</groupId>
     <artifactId>hibernate-search-engine</artifactId>
-    <version>1.0.0</version> <!-- Replace with the latest version -->
+    <version>1.1.0</version> <!-- Replace with the latest version -->
 </dependency>
 ```
 
