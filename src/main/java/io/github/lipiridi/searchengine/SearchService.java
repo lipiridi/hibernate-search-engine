@@ -83,18 +83,17 @@ public class SearchService {
     }
 
     @SuppressWarnings("unchecked")
-    public <E, M> SearchResponse<M> search(
+    private <E, M> SearchResponse<M> search(
             SearchRequest searchRequest,
             Class<E> entityClass,
             Map<String, SearchField> searchFieldMap,
             @Nullable Function<E, M> mapper) {
         validateSearchRequest(searchRequest, searchFieldMap);
+        List<SearchFilterPair> searchFilterPairs = createSearchFilters(searchRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
 
-        List<SearchFilter> searchFilters = createSearchFilters(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilters);
-
-        List<E> entities = fetchEntities(searchRequest, entityClass, searchFieldMap, searchFilters, distinctNeeded);
-        int totalNumber = totalElements(searchRequest, entityClass, searchFilters, distinctNeeded);
+        List<E> entities = fetchEntities(searchRequest, entityClass, searchFilterPairs, distinctNeeded, searchFieldMap);
+        long totalNumber = totalElements(entityClass, searchFilterPairs, distinctNeeded);
 
         List<M> mappedEntities = mapper == null
                 ? (List<M>) entities
@@ -114,25 +113,25 @@ public class SearchService {
                 searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
 
         validateSearchRequest(searchRequest, searchFieldMap);
-        List<SearchFilter> searchFilters = createSearchFilters(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilters);
+        List<SearchFilterPair> searchFilterPairs = createSearchFilters(searchRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
 
-        return fetchEntities(searchRequest, entityClass, searchFieldMap, searchFilters, distinctNeeded);
+        return fetchEntities(searchRequest, entityClass, searchFilterPairs, distinctNeeded, searchFieldMap);
     }
 
     private <E> List<E> fetchEntities(
             SearchRequest searchRequest,
             Class<E> entityClass,
-            Map<String, SearchField> searchFieldMap,
-            List<SearchFilter> searchFilters,
-            boolean distinctNeeded) {
+            List<SearchFilterPair> searchFilterPairs,
+            boolean distinctNeeded,
+            Map<String, SearchField> searchFieldMap) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
         Root<E> root = criteriaQuery.from(entityClass);
         criteriaQuery.distinct(distinctNeeded);
 
-        addFilters(searchFilters, searchRequest, criteriaBuilder, criteriaQuery, root);
-        addSorts(searchFieldMap, searchRequest, criteriaBuilder, criteriaQuery, root);
+        addFilters(root, criteriaBuilder, criteriaQuery, searchFilterPairs);
+        addSorts(root, criteriaBuilder, criteriaQuery, searchFieldMap, searchRequest);
 
         TypedQuery<E> query = entityManager.createQuery(criteriaQuery);
         query.setFirstResult((searchRequest.page() - 1) * searchRequest.size());
@@ -141,28 +140,25 @@ public class SearchService {
         return query.getResultList();
     }
 
-    public <E> int totalElements(SearchRequest searchRequest, Class<E> entityClass) {
+    public <E> long totalElements(SearchRequest searchRequest, Class<E> entityClass) {
         var searchFields = searchFieldCreator.createFromClass(entityClass);
         return totalElements(searchRequest, entityClass, searchFields);
     }
 
-    public <E> int totalElements(
+    public <E> long totalElements(
             SearchRequest searchRequest, Class<E> entityClass, Collection<SearchField> searchFields) {
         Map<String, SearchField> searchFieldMap =
                 searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
 
         validateSearchRequest(searchRequest, searchFieldMap);
-        List<SearchFilter> searchFilters = createSearchFilters(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilters);
+        List<SearchFilterPair> searchFilterPairs = createSearchFilters(searchRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
 
-        return totalElements(searchRequest, entityClass, searchFilters, distinctNeeded);
+        return totalElements(entityClass, searchFilterPairs, distinctNeeded);
     }
 
-    private <E> int totalElements(
-            SearchRequest searchRequest,
-            Class<E> entityClass,
-            List<SearchFilter> searchFilters,
-            boolean distinctNeeded) {
+    private <E> long totalElements(
+            Class<E> entityClass, List<SearchFilterPair> searchFilterPairs, boolean distinctNeeded) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> criteriaQuery = criteriaBuilder.createQuery(Long.class);
         Root<E> root = criteriaQuery.from(entityClass);
@@ -171,11 +167,11 @@ public class SearchService {
                 distinctNeeded ? criteriaBuilder.countDistinct(root) : criteriaBuilder.count(root);
         criteriaQuery.select(countExpression);
 
-        addFilters(searchFilters, searchRequest, criteriaBuilder, criteriaQuery, root);
+        addFilters(root, criteriaBuilder, criteriaQuery, searchFilterPairs);
 
         TypedQuery<Long> query = entityManager.createQuery(criteriaQuery);
 
-        return query.getSingleResult().intValue();
+        return query.getSingleResult();
     }
 
     public Map<Class<?>, List<SearchField>> getCollectedSearchFields() {
@@ -187,7 +183,7 @@ public class SearchService {
     }
 
     @Nonnull
-    private List<SearchFilter> createSearchFilters(
+    private List<SearchFilterPair> createSearchFilters(
             SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
         var filters = searchRequest.filters();
         if (CollectionUtils.isEmpty(filters)) {
@@ -195,12 +191,13 @@ public class SearchService {
         }
 
         return filters.stream()
-                .map(filter -> new SearchFilter(filter, FieldConvertUtils.resolveSearchField(searchFieldMap, filter)))
+                .map(filter ->
+                        new SearchFilterPair(filter, FieldConvertUtils.resolveSearchField(searchFieldMap, filter)))
                 .toList();
     }
 
-    private boolean isDistinctNeeded(@Nonnull List<SearchFilter> searchFilters) {
-        return searchFilters.stream().map(SearchFilter::searchField).anyMatch(SearchField::distinct);
+    private boolean isDistinctNeeded(@Nonnull List<SearchFilterPair> searchFilterPairs) {
+        return searchFilterPairs.stream().map(SearchFilterPair::searchField).anyMatch(SearchField::distinct);
     }
 
     private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
@@ -229,30 +226,27 @@ public class SearchService {
     }
 
     private void addFilters(
-            List<SearchFilter> searchFilters,
-            SearchRequest searchRequest,
+            Root<?> root,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
-            Root<?> root) {
+            List<SearchFilterPair> searchFilterPairs) {
         Predicate predicate = criteriaBuilder.conjunction();
-
-        var filters = searchRequest.filters();
-        if (CollectionUtils.isEmpty(searchFilters)) {
+        if (CollectionUtils.isEmpty(searchFilterPairs)) {
             return;
         }
 
         var searchConsumer = new FilterQueryCriteriaConsumer(criteriaBuilder, root, predicate);
-        searchFilters.forEach(searchConsumer);
+        searchFilterPairs.forEach(searchConsumer);
 
         criteriaQuery.where(searchConsumer.getPredicate());
     }
 
     private void addSorts(
-            Map<String, SearchField> searchFieldMap,
-            SearchRequest searchRequest,
+            Root<?> root,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
-            Root<?> root) {
+            Map<String, SearchField> searchFieldMap,
+            SearchRequest searchRequest) {
         var sorts = searchRequest.sorts();
         if (CollectionUtils.isEmpty(sorts)) {
             return;
@@ -284,7 +278,7 @@ public class SearchService {
         return path;
     }
 
-    private class FilterQueryCriteriaConsumer implements Consumer<SearchFilter> {
+    private class FilterQueryCriteriaConsumer implements Consumer<SearchFilterPair> {
 
         private final CriteriaBuilder builder;
         private final Root<?> root;
@@ -301,9 +295,9 @@ public class SearchService {
         }
 
         @Override
-        public void accept(SearchFilter searchFilter) {
-            Filter filter = searchFilter.filter();
-            SearchField searchField = searchFilter.searchField();
+        public void accept(SearchFilterPair searchFilterPair) {
+            Filter filter = searchFilterPair.filter();
+            SearchField searchField = searchFilterPair.searchField();
 
             FilterType filterType = filter.type();
 
@@ -374,5 +368,5 @@ public class SearchService {
         }
     }
 
-    private record SearchFilter(Filter filter, SearchField searchField) {}
+    private record SearchFilterPair(Filter filter, SearchField searchField) {}
 }
