@@ -79,13 +79,6 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            name = "Local"
-            url = layout.buildDirectory.dir("repos/bundles").get().asFile.toURI()
-        }
-    }
 }
 
 signing {
