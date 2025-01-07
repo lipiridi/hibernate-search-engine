@@ -7,8 +7,8 @@ plugins {
     `maven-publish`
     signing
 
-    id("com.diffplug.spotless") version "6.25.0"
-    id("tech.yanand.maven-central-publish") version "1.2.0"
+    id("com.diffplug.spotless") version "7.0.1"
+    id("tech.yanand.maven-central-publish") version "1.3.0"
 }
 
 group = "io.github.lipiridi"
@@ -34,7 +34,7 @@ repositories {
 }
 
 dependencies {
-    val springBootVersion = "3.3.2"
+    val springBootVersion = "3.4.1"
 
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
@@ -93,7 +93,6 @@ signing {
 }
 
 mavenCentral {
-    repoDir.set(layout.buildDirectory.dir("repos/bundles"))
     // Token for Publisher API calls obtained from Sonatype official,
     // it should be Base64 encoded of "username:password".
     val username = properties("mavenCentralUsername")
