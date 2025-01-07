@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.lipiridi"
-version = "1.0.4"
+version = "1.1.0-SNAPSHOT"
 
 java {
     withSourcesJar()
@@ -67,13 +67,13 @@ publishing {
                 scm {
                     connection = "scm:git:git://github.com/lipiridi/hibernate-search-engine.git"
                     developerConnection = "scm:git:ssh://github.com:lipiridi/hibernate-search-engine.git"
-                    url = "http://github.com/lipiridi/hibernate-search-engine/tree/master"
+                    url = "https://github.com/lipiridi/hibernate-search-engine/tree/main"
                 }
 
                 licenses {
                     license {
                         name = "MIT License"
-                        url = "http://www.opensource.org/licenses/mit-license.php"
+                        url = "https://www.opensource.org/licenses/mit-license.php"
                     }
                 }
             }

@@ -80,14 +80,16 @@ public class SearchFieldCreator {
 
                     if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
-                        searchFields.add(new SearchField(formatId(id), fieldName, genericType, true, filterTypes));
+                        searchFields.add(
+                                new SearchField(formatId(id), fieldName, genericType, true, false, filterTypes));
                     } else if (field.isAnnotationPresent(OneToMany.class)
                             || field.isAnnotationPresent(ManyToMany.class)) {
                         searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, entityClass));
                     }
                 } else {
                     if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
-                        searchFields.add(new SearchField(formatId(id), fieldName, fieldTypeWrapper, filterTypes));
+                        searchFields.add(
+                                new SearchField(formatId(id), fieldName, fieldTypeWrapper, false, filterTypes));
                     } else if (field.isAnnotationPresent(ManyToOne.class)
                             || field.isAnnotationPresent(OneToOne.class)) {
                         searchFields.addAll(
@@ -108,6 +110,7 @@ public class SearchFieldCreator {
                         fieldName + "." + nestedSearchField.path(),
                         nestedSearchField.fieldType(),
                         nestedSearchField.elementCollection(),
+                        false,
                         nestedSearchField.filterTypes()))
                 .collect(Collectors.toList());
     }

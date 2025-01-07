@@ -43,7 +43,7 @@ public final class ReflectionUtils {
             case "long" -> Long.class;
             case "float" -> Float.class;
             case "double" -> Double.class;
-            default -> null;
+            default -> throw new IllegalArgumentException("Unsupported primitive type: " + fieldType.getTypeName());
         };
     }
 
