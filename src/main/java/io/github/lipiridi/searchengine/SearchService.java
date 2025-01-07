@@ -10,6 +10,7 @@ import io.github.lipiridi.searchengine.config.SearchEngineProperties;
 import io.github.lipiridi.searchengine.dto.Filter;
 import io.github.lipiridi.searchengine.dto.SearchRequest;
 import io.github.lipiridi.searchengine.dto.SearchResponse;
+import io.github.lipiridi.searchengine.dto.Sort;
 import io.github.lipiridi.searchengine.util.FieldConvertUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -89,10 +90,12 @@ public class SearchService {
             Map<String, SearchField> searchFieldMap,
             @Nullable Function<E, M> mapper) {
         validateSearchRequest(searchRequest, searchFieldMap);
-        List<SearchFilterPair> searchFilterPairs = createSearchFilters(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
+        List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(searchRequest, searchFieldMap);
+        List<SearchSortPair> searchSortPairs = createSearchSortPairs(searchRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs, searchSortPairs);
 
-        List<E> entities = fetchEntities(searchRequest, entityClass, searchFilterPairs, distinctNeeded, searchFieldMap);
+        List<E> entities =
+                fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
         long totalNumber = totalElements(entityClass, searchFilterPairs, distinctNeeded);
 
         List<M> mappedEntities = mapper == null
@@ -113,25 +116,26 @@ public class SearchService {
                 searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
 
         validateSearchRequest(searchRequest, searchFieldMap);
-        List<SearchFilterPair> searchFilterPairs = createSearchFilters(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
+        List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(searchRequest, searchFieldMap);
+        List<SearchSortPair> searchSortPairs = createSearchSortPairs(searchRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs, searchSortPairs);
 
-        return fetchEntities(searchRequest, entityClass, searchFilterPairs, distinctNeeded, searchFieldMap);
+        return fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
     }
 
     private <E> List<E> fetchEntities(
             SearchRequest searchRequest,
             Class<E> entityClass,
             List<SearchFilterPair> searchFilterPairs,
-            boolean distinctNeeded,
-            Map<String, SearchField> searchFieldMap) {
+            List<SearchSortPair> searchSortPairs,
+            boolean distinctNeeded) {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
         Root<E> root = criteriaQuery.from(entityClass);
         criteriaQuery.distinct(distinctNeeded);
 
         addFilters(root, criteriaBuilder, criteriaQuery, searchFilterPairs);
-        addSorts(root, criteriaBuilder, criteriaQuery, searchFieldMap, searchRequest);
+        addSorts(root, criteriaBuilder, criteriaQuery, searchSortPairs);
 
         TypedQuery<E> query = entityManager.createQuery(criteriaQuery);
         query.setFirstResult((searchRequest.page() - 1) * searchRequest.size());
@@ -151,8 +155,8 @@ public class SearchService {
                 searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
 
         validateSearchRequest(searchRequest, searchFieldMap);
-        List<SearchFilterPair> searchFilterPairs = createSearchFilters(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
+        List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(searchRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs, Collections.emptyList());
 
         return totalElements(entityClass, searchFilterPairs, distinctNeeded);
     }
@@ -183,7 +187,7 @@ public class SearchService {
     }
 
     @Nonnull
-    private List<SearchFilterPair> createSearchFilters(
+    private List<SearchFilterPair> createSearchFilterPairs(
             SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
         var filters = searchRequest.filters();
         if (CollectionUtils.isEmpty(filters)) {
@@ -196,8 +200,23 @@ public class SearchService {
                 .toList();
     }
 
-    private boolean isDistinctNeeded(@Nonnull List<SearchFilterPair> searchFilterPairs) {
-        return searchFilterPairs.stream().map(SearchFilterPair::searchField).anyMatch(SearchField::distinct);
+    @Nonnull
+    private List<SearchSortPair> createSearchSortPairs(
+            SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
+        var sorts = searchRequest.sorts();
+        if (CollectionUtils.isEmpty(sorts)) {
+            return Collections.emptyList();
+        }
+
+        return sorts.stream()
+                .map(sort -> new SearchSortPair(sort, FieldConvertUtils.resolveSearchField(searchFieldMap, sort)))
+                .toList();
+    }
+
+    private boolean isDistinctNeeded(
+            @Nonnull List<SearchFilterPair> searchFilterPairs, @Nonnull List<SearchSortPair> searchSortPairs) {
+        return searchFilterPairs.stream().map(SearchFilterPair::searchField).anyMatch(SearchField::distinct)
+                || searchSortPairs.stream().map(SearchSortPair::searchField).anyMatch(SearchField::distinct);
     }
 
     private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
@@ -245,20 +264,17 @@ public class SearchService {
             Root<?> root,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
-            Map<String, SearchField> searchFieldMap,
-            SearchRequest searchRequest) {
-        var sorts = searchRequest.sorts();
-        if (CollectionUtils.isEmpty(sorts)) {
+            List<SearchSortPair> searchSortPairs) {
+        if (CollectionUtils.isEmpty(searchSortPairs)) {
             return;
         }
 
-        List<Order> orders = sorts.stream()
-                .map(sort -> {
-                    String field = sort.field();
-                    SearchField searchField = searchFieldMap.get(field);
+        List<Order> orders = searchSortPairs.stream()
+                .map(searchSortPair -> {
+                    SearchField searchField = searchSortPair.searchField();
                     Path<?> path = getPath(root, searchField);
 
-                    return sort.direction() == SortDirection.DESCENDING
+                    return searchSortPair.sort().direction() == SortDirection.DESCENDING
                             ? criteriaBuilder.desc(path)
                             : criteriaBuilder.asc(path);
                 })
@@ -369,4 +385,6 @@ public class SearchService {
     }
 
     private record SearchFilterPair(Filter filter, SearchField searchField) {}
+
+    private record SearchSortPair(Sort sort, SearchField searchField) {}
 }

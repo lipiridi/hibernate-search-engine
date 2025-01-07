@@ -81,10 +81,11 @@ public class SearchFieldCreator {
                     if (field.isAnnotationPresent(ElementCollection.class)
                             && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
                         searchFields.add(
-                                new SearchField(formatId(id), fieldName, genericType, true, false, filterTypes));
+                                new SearchField(formatId(id), fieldName, genericType, true, true, filterTypes));
                     } else if (field.isAnnotationPresent(OneToMany.class)
                             || field.isAnnotationPresent(ManyToMany.class)) {
-                        searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, entityClass));
+                        searchFields.addAll(
+                                createNestedEntitySearchFields(id, fieldName, genericType, true, entityClass));
                     }
                 } else {
                     if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
@@ -93,7 +94,7 @@ public class SearchFieldCreator {
                     } else if (field.isAnnotationPresent(ManyToOne.class)
                             || field.isAnnotationPresent(OneToOne.class)) {
                         searchFields.addAll(
-                                createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, entityClass));
+                                createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, false, entityClass));
                     }
                 }
             }
@@ -103,14 +104,14 @@ public class SearchFieldCreator {
     }
 
     private List<SearchField> createNestedEntitySearchFields(
-            String id, String fieldName, Class<?> fieldType, Class<?> parentClass) {
+            String id, String fieldName, Class<?> fieldType, boolean distinct, Class<?> parentClass) {
         return createFromClass(fieldType, parentClass).stream()
                 .map(nestedSearchField -> new SearchField(
                         formatId(id + capitalize(nestedSearchField.id())),
                         fieldName + "." + nestedSearchField.path(),
                         nestedSearchField.fieldType(),
                         nestedSearchField.elementCollection(),
-                        false,
+                        distinct,
                         nestedSearchField.filterTypes()))
                 .collect(Collectors.toList());
     }
