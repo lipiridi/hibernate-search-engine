@@ -6,6 +6,7 @@ import io.github.lipiridi.searchengine.FilterType;
 import io.github.lipiridi.searchengine.HibernateSearchEngineException;
 import io.github.lipiridi.searchengine.SearchField;
 import io.github.lipiridi.searchengine.dto.Filter;
+import io.github.lipiridi.searchengine.dto.Sort;
 import jakarta.annotation.Nullable;
 import java.util.AbstractMap;
 import java.util.Arrays;
@@ -39,6 +40,18 @@ public class FieldConvertUtils {
                     CollectionUtils.isEmpty(allowedFilterTypes) ? existingFiltersByClass : allowedFilterTypes;
             throw new HibernateSearchEngineException("Not allowed filter type for field %s. Available filters: %s"
                     .formatted(filter.field(), availableFilters));
+        }
+
+        return searchField;
+    }
+
+    public static SearchField resolveSearchField(Map<String, SearchField> searchFields, Sort sort) {
+        SearchField searchField = searchFields.get(sort.field());
+
+        if (searchField.distinct()) {
+            throw new HibernateSearchEngineException(
+                    "Sorting by fields in joined collections is not allowed. Invalid field: %s"
+                            .formatted(sort.field()));
         }
 
         return searchField;

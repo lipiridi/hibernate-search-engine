@@ -8,30 +8,31 @@ public record SearchField(
         String path,
         Class<?> fieldType,
         boolean elementCollection,
+        boolean distinct,
         // Leave null in order to support all filters supported by field type
         @Nullable Set<FilterType> filterTypes) {
 
-    public SearchField(String id, Class<?> fieldType) {
-        this(id, id, fieldType);
+    public SearchField(String id, Class<?> fieldType, boolean distinct) {
+        this(id, id, fieldType, distinct);
     }
 
-    public SearchField(String id, Class<?> fieldType, boolean elementCollection) {
-        this(id, id, fieldType, elementCollection);
+    public SearchField(String id, Class<?> fieldType, boolean elementCollection, boolean distinct) {
+        this(id, id, fieldType, elementCollection, distinct);
     }
 
-    public SearchField(String id, Class<?> fieldType, Set<FilterType> filterTypes) {
-        this(id, id, fieldType, false, filterTypes);
+    public SearchField(String id, Class<?> fieldType, boolean distinct, Set<FilterType> filterTypes) {
+        this(id, id, fieldType, false, distinct, filterTypes);
     }
 
-    public SearchField(String id, String path, Class<?> fieldType) {
-        this(id, path, fieldType, false);
+    public SearchField(String id, String path, Class<?> fieldType, boolean distinct) {
+        this(id, path, fieldType, false, distinct);
     }
 
-    public SearchField(String id, String path, Class<?> fieldType, Set<FilterType> filterTypes) {
-        this(id, path, fieldType, false, filterTypes);
+    public SearchField(String id, String path, Class<?> fieldType, boolean distinct, Set<FilterType> filterTypes) {
+        this(id, path, fieldType, false, distinct, filterTypes);
     }
 
-    public SearchField(String id, String path, Class<?> fieldType, boolean elementCollection) {
-        this(id, path, fieldType, elementCollection, null);
+    public SearchField(String id, String path, Class<?> fieldType, boolean elementCollection, boolean distinct) {
+        this(id, path, fieldType, elementCollection, distinct, null);
     }
 }
