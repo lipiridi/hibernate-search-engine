@@ -42,6 +42,11 @@ public class FieldConvertUtils {
                     .formatted(filter.field(), availableFilters));
         }
 
+        if (!filterType.isNullAllowed() && filter.value() == null) {
+            throw new HibernateSearchEngineException("Filter type '%s' requires a value. Invalid field: '%s'"
+                    .formatted(filterType.name(), filter.field()));
+        }
+
         return searchField;
     }
 
@@ -50,7 +55,7 @@ public class FieldConvertUtils {
 
         if (searchField.distinct()) {
             throw new HibernateSearchEngineException(
-                    "Sorting by fields in joined collections is not allowed. Invalid field: %s"
+                    "Sorting by fields in joined collections is not allowed. Invalid field: '%s'"
                             .formatted(sort.field()));
         }
 

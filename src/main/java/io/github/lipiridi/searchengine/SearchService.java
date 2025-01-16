@@ -19,6 +19,8 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -27,6 +29,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,12 +47,14 @@ public class SearchService {
     private final EntityManager entityManager;
     private final SearchEngineProperties searchEngineProperties;
     private final SearchFieldCreator searchFieldCreator;
+    private final GraphBuilder graphBuilder;
 
     public SearchService(EntityManager entityManager, SearchEngineProperties searchEngineProperties) {
         this.entityManager = entityManager;
         this.searchEngineProperties = searchEngineProperties;
 
         searchFieldCreator = new SearchFieldCreator(searchEngineProperties.getNamingConvention());
+        graphBuilder = new GraphBuilder();
     }
 
     public <E> SearchResponse<E> search(SearchRequest searchRequest, Class<E> entityClass) {
@@ -92,7 +97,7 @@ public class SearchService {
         validateSearchRequest(searchRequest, searchFieldMap);
         List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(searchRequest, searchFieldMap);
         List<SearchSortPair> searchSortPairs = createSearchSortPairs(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs, searchSortPairs);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
 
         List<E> entities =
                 fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
@@ -118,7 +123,7 @@ public class SearchService {
         validateSearchRequest(searchRequest, searchFieldMap);
         List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(searchRequest, searchFieldMap);
         List<SearchSortPair> searchSortPairs = createSearchSortPairs(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs, searchSortPairs);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
 
         return fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
     }
@@ -132,10 +137,12 @@ public class SearchService {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
         Root<E> root = criteriaQuery.from(entityClass);
+        graphBuilder.addEagerJoins(root, entityClass);
         criteriaQuery.distinct(distinctNeeded);
 
-        addFilters(root, criteriaBuilder, criteriaQuery, searchFilterPairs);
-        addSorts(root, criteriaBuilder, criteriaQuery, searchSortPairs);
+        JoinHolder joinHolder = new JoinHolder();
+        addFilters(root, criteriaBuilder, criteriaQuery, joinHolder, searchFilterPairs);
+        addSorts(root, criteriaBuilder, criteriaQuery, joinHolder, searchSortPairs);
 
         TypedQuery<E> query = entityManager.createQuery(criteriaQuery);
         query.setFirstResult((searchRequest.page() - 1) * searchRequest.size());
@@ -156,7 +163,7 @@ public class SearchService {
 
         validateSearchRequest(searchRequest, searchFieldMap);
         List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(searchRequest, searchFieldMap);
-        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs, Collections.emptyList());
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
 
         return totalElements(entityClass, searchFilterPairs, distinctNeeded);
     }
@@ -171,7 +178,7 @@ public class SearchService {
                 distinctNeeded ? criteriaBuilder.countDistinct(root) : criteriaBuilder.count(root);
         criteriaQuery.select(countExpression);
 
-        addFilters(root, criteriaBuilder, criteriaQuery, searchFilterPairs);
+        addFilters(root, criteriaBuilder, criteriaQuery, new JoinHolder(), searchFilterPairs);
 
         TypedQuery<Long> query = entityManager.createQuery(criteriaQuery);
 
@@ -213,10 +220,8 @@ public class SearchService {
                 .toList();
     }
 
-    private boolean isDistinctNeeded(
-            @Nonnull List<SearchFilterPair> searchFilterPairs, @Nonnull List<SearchSortPair> searchSortPairs) {
-        return searchFilterPairs.stream().map(SearchFilterPair::searchField).anyMatch(SearchField::distinct)
-                || searchSortPairs.stream().map(SearchSortPair::searchField).anyMatch(SearchField::distinct);
+    private boolean isDistinctNeeded(@Nonnull List<SearchFilterPair> searchFilterPairs) {
+        return searchFilterPairs.stream().map(SearchFilterPair::searchField).anyMatch(SearchField::distinct);
     }
 
     private void validateSearchRequest(SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
@@ -248,13 +253,14 @@ public class SearchService {
             Root<?> root,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
+            JoinHolder joinHolder,
             List<SearchFilterPair> searchFilterPairs) {
         Predicate predicate = criteriaBuilder.conjunction();
         if (CollectionUtils.isEmpty(searchFilterPairs)) {
             return;
         }
 
-        var searchConsumer = new FilterQueryCriteriaConsumer(criteriaBuilder, root, predicate);
+        var searchConsumer = new FilterQueryCriteriaConsumer(criteriaBuilder, root, joinHolder, predicate);
         searchFilterPairs.forEach(searchConsumer);
 
         criteriaQuery.where(searchConsumer.getPredicate());
@@ -264,6 +270,7 @@ public class SearchService {
             Root<?> root,
             CriteriaBuilder criteriaBuilder,
             CriteriaQuery<?> criteriaQuery,
+            JoinHolder joinHolder,
             List<SearchSortPair> searchSortPairs) {
         if (CollectionUtils.isEmpty(searchSortPairs)) {
             return;
@@ -272,7 +279,7 @@ public class SearchService {
         List<Order> orders = searchSortPairs.stream()
                 .map(searchSortPair -> {
                     SearchField searchField = searchSortPair.searchField();
-                    Path<?> path = getPath(root, searchField);
+                    Path<?> path = joinHolder.getPath(root, searchField);
 
                     return searchSortPair.sort().direction() == SortDirection.DESCENDING
                             ? criteriaBuilder.desc(path)
@@ -283,26 +290,56 @@ public class SearchService {
         criteriaQuery.orderBy(orders);
     }
 
-    private <Y> Path<Y> getPath(Root<?> root, SearchField searchField) {
-        String[] fields = searchField.path().split("\\.");
+    private static class JoinHolder {
 
-        Path<Y> path = searchField.elementCollection() ? root.join(fields[0]) : root.get(fields[0]);
-        for (int i = 1; i < fields.length; i++) {
-            path = path.get(fields[i]);
+        private final Map<String, Join<?, ?>> builtJoins = new HashMap<>();
+
+        public <Y> Path<Y> getPath(Root<?> root, SearchField searchField) {
+            String[] fields = searchField.path().split("\\.");
+            String firstField = fields[0];
+            int length = fields.length;
+
+            if (length == 1 && !searchField.elementCollection()) {
+                return root.get(firstField);
+            }
+
+            Join<?, ?> rootJoin = builtJoins.get(firstField);
+            if (rootJoin == null) {
+                rootJoin = root.join(firstField, JoinType.LEFT);
+                builtJoins.put(firstField, rootJoin);
+            }
+
+            if (searchField.elementCollection()) {
+                //noinspection unchecked
+                return (Path<Y>) rootJoin;
+            }
+
+            String currentPath = firstField;
+            for (int i = 1; i < length - 1; i++) {
+                currentPath = currentPath + "." + fields[i];
+                Join<?, ?> cachedJoin = builtJoins.get(currentPath);
+                if (cachedJoin == null) {
+                    cachedJoin = rootJoin.join(fields[i], JoinType.LEFT);
+                    builtJoins.put(currentPath, cachedJoin);
+                }
+                rootJoin = cachedJoin;
+            }
+
+            return rootJoin.get(fields[length - 1]);
         }
-
-        return path;
     }
 
-    private class FilterQueryCriteriaConsumer implements Consumer<SearchFilterPair> {
+    private static class FilterQueryCriteriaConsumer implements Consumer<SearchFilterPair> {
 
         private final CriteriaBuilder builder;
         private final Root<?> root;
+        private final JoinHolder joinHolder;
         private Predicate predicate;
 
-        public FilterQueryCriteriaConsumer(CriteriaBuilder builder, Root<?> root, Predicate predicate) {
+        public FilterQueryCriteriaConsumer(CriteriaBuilder builder, Root<?> root, JoinHolder joinHolder, Predicate predicate) {
             this.builder = builder;
             this.root = root;
+            this.joinHolder = joinHolder;
             this.predicate = predicate;
         }
 
@@ -380,7 +417,7 @@ public class SearchService {
         }
 
         private <Y> Path<Y> getPath(SearchField searchField) {
-            return SearchService.this.getPath(root, searchField);
+            return joinHolder.getPath(root, searchField);
         }
     }
 
