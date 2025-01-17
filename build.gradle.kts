@@ -7,7 +7,7 @@ plugins {
     `maven-publish`
     signing
 
-    id("com.diffplug.spotless") version "7.0.1"
+    id("com.diffplug.spotless") version "7.0.2"
     id("tech.yanand.maven-central-publish") version "1.3.0"
 }
 

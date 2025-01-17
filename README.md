@@ -14,6 +14,11 @@ improving data retrieval efficiency.
   search functionality.
 
 
+- **Wide support:** Use `@Searchable` with primitive types and various relationships, including `@OneToOne`,
+  `@OneToMany`, `@ManyToOne`,
+  `@ManyToMany`, `@ElementCollection`. Use nested fields from these relationships in search requests.
+
+
 - **SearchService Integration:** Inject the SearchService into your code, and effortlessly perform searches by
   calling `searchService.search(searchRequest, Entity.class)`
 
@@ -30,7 +35,7 @@ To include this library in your project, add the following dependency:
 Gradle:
 
 ```kotlin
-implementation("io.github.lipiridi:hibernate-search-engine:1.1.0")
+implementation("io.github.lipiridi:hibernate-search-engine:1.1.1")
 ```
 
 Maven:
@@ -40,7 +45,7 @@ Maven:
 <dependency>
     <groupId>io.github.lipiridi</groupId>
     <artifactId>hibernate-search-engine</artifactId>
-    <version>1.1.0</version> <!-- Replace with the latest version -->
+    <version>1.1.1</version> <!-- Replace with the latest version -->
 </dependency>
 ```
 
@@ -58,6 +63,44 @@ spring.jpa.hibernate.search-engine.naming-convention=camel_case
 ```
 
 ## Usage example
+
+```java
+
+@Entity
+public class TestEntity {
+
+    @Searchable
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    Long id;
+
+    @Searchable
+    String description;
+
+    @Searchable
+    @ManyToOne
+    @JoinColumn
+    Image image;
+
+    @Searchable
+    int sortOrder;
+
+    @Searchable
+    @CreationTimestamp
+    Instant createdAt;
+
+    @Searchable
+    boolean enabled;
+
+    @Searchable
+    @OneToMany
+    Set<TestAttribute> attributes = new HashSet<>();
+
+    @Searchable
+    @ElementCollection
+    List<String> labels = new ArrayList<>();
+}
+```
 
 ```java
 
@@ -106,7 +149,7 @@ Here's an example of the search request JSON body output:
       "direction": "ASCENDING"
     },
     {
-      "field": "name",
+      "field": "imageName",
       "direction": "DESCENDING"
     }
   ]
