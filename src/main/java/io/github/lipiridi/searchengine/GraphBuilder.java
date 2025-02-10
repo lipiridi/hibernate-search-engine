@@ -8,9 +8,8 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.criteria.Fetch;
 import jakarta.persistence.criteria.FetchParent;
 import jakarta.persistence.criteria.JoinType;
-import org.hibernate.annotations.FetchMode;
-
 import java.lang.reflect.Field;
+import org.hibernate.annotations.FetchMode;
 
 public class GraphBuilder {
 

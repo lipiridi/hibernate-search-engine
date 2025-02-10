@@ -4,6 +4,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.Currency;
 import java.util.Map;
 import java.util.UUID;
@@ -23,6 +27,10 @@ public final class ReflectionUtils {
             Map.entry(Float.class, Float::parseFloat),
             Map.entry(BigDecimal.class, BigDecimal::new),
             Map.entry(Instant.class, value -> Instant.ofEpochMilli(Long.parseLong(value))),
+            Map.entry(LocalDate.class, LocalDate::parse),
+            Map.entry(LocalDateTime.class, LocalDateTime::parse),
+            Map.entry(ZonedDateTime.class, ZonedDateTime::parse),
+            Map.entry(OffsetDateTime.class, OffsetDateTime::parse),
             Map.entry(Currency.class, value -> Currency.getInstance(value.toUpperCase())));
 
     private ReflectionUtils() {

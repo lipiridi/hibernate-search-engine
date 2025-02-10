@@ -27,6 +27,10 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -336,7 +340,8 @@ public class SearchService {
         private final JoinHolder joinHolder;
         private Predicate predicate;
 
-        public FilterQueryCriteriaConsumer(CriteriaBuilder builder, Root<?> root, JoinHolder joinHolder, Predicate predicate) {
+        public FilterQueryCriteriaConsumer(
+                CriteriaBuilder builder, Root<?> root, JoinHolder joinHolder, Predicate predicate) {
             this.builder = builder;
             this.root = root;
             this.joinHolder = joinHolder;
@@ -397,6 +402,18 @@ public class SearchService {
                 buildComparePredicate(filterType, searchField, castedValue);
             }
             if (value instanceof Instant castedValue) {
+                buildComparePredicate(filterType, searchField, castedValue);
+            }
+            if (value instanceof LocalDate castedValue) {
+                buildComparePredicate(filterType, searchField, castedValue);
+            }
+            if (value instanceof LocalDateTime castedValue) {
+                buildComparePredicate(filterType, searchField, castedValue);
+            }
+            if (value instanceof ZonedDateTime castedValue) {
+                buildComparePredicate(filterType, searchField, castedValue);
+            }
+            if (value instanceof OffsetDateTime castedValue) {
                 buildComparePredicate(filterType, searchField, castedValue);
             }
         }

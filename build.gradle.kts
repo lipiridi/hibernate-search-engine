@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.lipiridi"
-version = "1.1.1"
+version = "1.1.2"
 
 java {
     withSourcesJar()
@@ -96,7 +96,7 @@ mavenCentral {
     authToken.set(encodedAuthToken)
     // Whether the upload should be automatically published or not. Use 'USER_MANAGED' if you wish to do this manually.
     // This property is optional and defaults to 'AUTOMATIC'.
-    publishingType.set("USER_MANAGED")
+    publishingType.set("AUTOMATIC")
 }
 
 tasks.jar {
