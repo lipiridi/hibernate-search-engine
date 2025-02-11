@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.lipiridi"
-version = "1.1.2"
+version = "1.1.3"
 
 java {
     withSourcesJar()

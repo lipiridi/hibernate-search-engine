@@ -2,6 +2,10 @@ package io.github.lipiridi.searchengine.util;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Currency;
@@ -30,6 +34,10 @@ public final class FilterUtils {
                 Double.class,
                 Float.class,
                 BigDecimal.class,
-                Instant.class);
+                Instant.class,
+                LocalDate.class,
+                LocalDateTime.class,
+                ZonedDateTime.class,
+                OffsetDateTime.class);
     }
 }
