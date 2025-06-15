@@ -1,4 +1,4 @@
-import java.util.*
+import java.util.Base64
 
 fun properties(key: String) = project.findProperty(key)?.toString() ?: ""
 
@@ -7,12 +7,12 @@ plugins {
     `maven-publish`
     signing
 
-    id("com.diffplug.spotless") version "7.0.2"
+    id("com.diffplug.spotless") version "7.0.4"
     id("tech.yanand.maven-central-publish") version "1.3.0"
 }
 
 group = "io.github.lipiridi"
-version = "1.1.3"
+version = "1.2.0"
 
 java {
     withSourcesJar()
@@ -34,11 +34,11 @@ repositories {
 }
 
 dependencies {
-    val springBootVersion = "3.4.1"
+    val springBootVersion = "3.5.0"
 
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
-    implementation("org.springframework.boot:spring-boot-starter-validation:${springBootVersion}")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:$springBootVersion")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
+    implementation("org.springframework.boot:spring-boot-starter-validation:$springBootVersion")
 }
 
 tasks.withType<Javadoc> {
@@ -54,7 +54,9 @@ publishing {
 
                 name.set("Hibernate Search Engine")
                 url.set("https://github.com/lipiridi/hibernate-search-engine")
-                description.set("Hibernate Search Engine simplifies the process of querying databases by any field, offering convenient pagination support")
+                description.set(
+                    "Hibernate Search Engine simplifies the process of querying databases by any field, offering convenient pagination support",
+                )
 
                 developers {
                     developer {
@@ -101,17 +103,22 @@ mavenCentral {
 
 tasks.jar {
     manifest {
-        attributes(mapOf("Implementation-Title" to project.name,
-                "Implementation-Version" to project.version))
+        attributes(
+            mapOf(
+                "Implementation-Title" to project.name,
+                "Implementation-Version" to project.version,
+            ),
+        )
     }
 }
 
 spotless {
     java {
         target("src/*/java/**/*.java")
-
         palantirJavaFormat()
-        removeUnusedImports()
-        importOrder()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
     }
 }

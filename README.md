@@ -35,7 +35,7 @@ To include this library in your project, add the following dependency:
 Gradle:
 
 ```kotlin
-implementation("io.github.lipiridi:hibernate-search-engine:1.1.1")
+implementation("io.github.lipiridi:hibernate-search-engine:1.2.0")
 ```
 
 Maven:
@@ -45,7 +45,7 @@ Maven:
 <dependency>
     <groupId>io.github.lipiridi</groupId>
     <artifactId>hibernate-search-engine</artifactId>
-    <version>1.1.1</version> <!-- Replace with the latest version -->
+    <version>1.2.0</version> <!-- Replace it with the latest version -->
 </dependency>
 ```
 
@@ -53,8 +53,8 @@ Maven:
 
 Customize the library's behavior with the help of configuration properties.
 
-- **Max page size** - limit the search request in order to prohibit large queries to the database
-- **Naming convention** - choose how to generate field names that uses client for searching (in case when you use
+- **Max page size** — limit the search request in order to prohibit large queries to the database
+- **Naming convention** — choose how to generate field names that uses client for searching (in case when you use
   @Searchable annotation)
 
 ```properties
@@ -124,8 +124,9 @@ Here's an example of the search request JSON body output:
 
 ```json
 {
-  "page": "1",
-  "size": "100",
+  "page": 1,
+  "size": 100,
+  "withoutTotals": false,
   "filters": [
     {
       "field": "description",

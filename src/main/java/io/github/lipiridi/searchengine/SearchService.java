@@ -105,7 +105,8 @@ public class SearchService {
 
         List<E> entities =
                 fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
-        long totalNumber = totalElements(entityClass, searchFilterPairs, distinctNeeded);
+        long totalNumber =
+                searchRequest.withoutTotals() ? 0 : totalElements(entityClass, searchFilterPairs, distinctNeeded);
 
         List<M> mappedEntities = mapper == null
                 ? (List<M>) entities
@@ -370,16 +371,19 @@ public class SearchService {
                 case IS_NULL -> predicate = builder.and(predicate, builder.isNull(getPath(searchField)));
                 case IS_NOT_NULL -> predicate = builder.and(predicate, builder.isNotNull(getPath(searchField)));
                 case EQUAL -> predicate = builder.and(predicate, builder.equal(getPath(searchField), singleValue));
-                case NOT_EQUAL -> predicate =
-                        builder.and(predicate, builder.notEqual(getPath(searchField), singleValue));
-                case IN -> predicate =
-                        builder.and(predicate, getPath(searchField).in(valueList));
-                case NOT_IN -> predicate = builder.and(
-                        predicate, getPath(searchField).in(valueList).not());
-                case LIKE -> predicate = builder.and(
-                        predicate, builder.like(builder.lower(getPath(searchField)), getLikeValue(singleValue)));
-                case NOT_LIKE -> predicate = builder.and(
-                        predicate, builder.notLike(builder.lower(getPath(searchField)), getLikeValue(singleValue)));
+                case NOT_EQUAL ->
+                    predicate = builder.and(predicate, builder.notEqual(getPath(searchField), singleValue));
+                case IN ->
+                    predicate = builder.and(predicate, getPath(searchField).in(valueList));
+                case NOT_IN ->
+                    predicate = builder.and(
+                            predicate, getPath(searchField).in(valueList).not());
+                case LIKE ->
+                    predicate = builder.and(
+                            predicate, builder.like(builder.lower(getPath(searchField)), getLikeValue(singleValue)));
+                case NOT_LIKE ->
+                    predicate = builder.and(
+                            predicate, builder.notLike(builder.lower(getPath(searchField)), getLikeValue(singleValue)));
                 case GREATER_THAN -> buildComparePredicate(GREATER_THAN, searchField, singleValue);
                 case GREATER_THAN_OR_EQUAL -> buildComparePredicate(GREATER_THAN_OR_EQUAL, searchField, singleValue);
                 case LESS_THAN -> buildComparePredicate(LESS_THAN, searchField, singleValue);
@@ -421,15 +425,16 @@ public class SearchService {
         private <K extends Comparable<K>> void buildComparePredicate(
                 FilterType filterType, SearchField searchField, K value) {
             switch (filterType) {
-                case GREATER_THAN -> predicate =
-                        builder.and(predicate, builder.greaterThan(getPath(searchField), value));
-                case GREATER_THAN_OR_EQUAL -> predicate =
-                        builder.and(predicate, builder.greaterThanOrEqualTo(getPath(searchField), value));
+                case GREATER_THAN ->
+                    predicate = builder.and(predicate, builder.greaterThan(getPath(searchField), value));
+                case GREATER_THAN_OR_EQUAL ->
+                    predicate = builder.and(predicate, builder.greaterThanOrEqualTo(getPath(searchField), value));
                 case LESS_THAN -> predicate = builder.and(predicate, builder.lessThan(getPath(searchField), value));
-                case LESS_THAN_OR_EQUAL -> predicate =
-                        builder.and(predicate, builder.lessThanOrEqualTo(getPath(searchField), value));
-                default -> throw new HibernateSearchEngineException(
-                        String.format("Can't build compare predicate for filter type %s", filterType));
+                case LESS_THAN_OR_EQUAL ->
+                    predicate = builder.and(predicate, builder.lessThanOrEqualTo(getPath(searchField), value));
+                default ->
+                    throw new HibernateSearchEngineException(
+                            String.format("Can't build compare predicate for filter type %s", filterType));
             }
         }
 

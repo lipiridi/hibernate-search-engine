@@ -27,6 +27,31 @@ public class SearchEngineProperties {
     public enum NamingConvention {
         CAMEL_CASE,
         SNAKE_CASE,
-        DOT_CASE
+        DOT_CASE;
+
+        public String mergeStrings(String... strings) {
+            StringBuilder sb = new StringBuilder(strings[0]);
+            for (int i = 1; i < strings.length; i++) {
+                switch (this) {
+                    case CAMEL_CASE -> sb.append(capitalize(strings[i]));
+                    case SNAKE_CASE -> sb.append("_").append(strings[i]);
+                    case DOT_CASE -> sb.append(".").append(strings[i]);
+                }
+            }
+
+            return sb.toString();
+        }
+
+        public String formatId(String id) {
+            return switch (this) {
+                case CAMEL_CASE -> id;
+                case SNAKE_CASE -> id.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase();
+                case DOT_CASE -> id.replaceAll("([a-z0-9])([A-Z])", "$1.$2").toLowerCase();
+            };
+        }
+
+        private String capitalize(String input) {
+            return input.substring(0, 1).toUpperCase() + input.substring(1);
+        }
     }
 }
