@@ -100,7 +100,8 @@ public class SearchService {
 
         List<E> entities =
                 fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
-        long totalNumber = totalElements(entityClass, searchFilterPairs, distinctNeeded);
+        Long totalNumber =
+                searchRequest.withoutTotals() ? null : totalElements(entityClass, searchFilterPairs, distinctNeeded);
 
         List<M> mappedEntities = mapper == null
                 ? (List<M>) entities

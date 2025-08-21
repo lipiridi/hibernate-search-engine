@@ -59,43 +59,48 @@ public class SearchFieldCreator {
         }
 
         for (Field field : entityClass.getDeclaredFields()) {
-            if (field.isAnnotationPresent(Searchable.class)) {
-                Searchable searchableAnnotation = field.getAnnotation(Searchable.class);
-                String fieldName = field.getName();
-                String id = searchableAnnotation.value().isEmpty() ? fieldName : searchableAnnotation.value();
-                Set<FilterType> filterTypes =
-                        Arrays.stream(searchableAnnotation.filterTypes()).collect(Collectors.toSet());
-                Class<?> fieldTypeWrapper = ReflectionUtils.getPrimitiveWrapper(field.getType());
+            if (!field.isAnnotationPresent(Searchable.class)) {
+                continue;
+            }
+            Class<?> fieldTypeWrapper = ReflectionUtils.getPrimitiveWrapper(field.getType());
 
-                // Prevent stack overflow
-                if (fieldTypeWrapper.equals(entityClass) || fieldTypeWrapper.equals(parentClass)) {
+            Class<?> genericType = null;
+            if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
+                genericType = ReflectionUtils.getGenericType(field);
+            }
+
+            // Prevent stack overflow
+            if (fieldTypeWrapper.equals(entityClass)
+                    || fieldTypeWrapper.equals(parentClass)
+                    || genericType != null && genericType.equals(parentClass)) {
+                continue;
+            }
+
+            Searchable searchableAnnotation = field.getAnnotation(Searchable.class);
+            String fieldName = field.getName();
+            String id = searchableAnnotation.value().isEmpty()
+                    ? namingConvention.formatId(fieldName)
+                    : searchableAnnotation.value();
+            Set<FilterType> filterTypes =
+                    Arrays.stream(searchableAnnotation.filterTypes()).collect(Collectors.toSet());
+
+            if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
+                if (genericType == null) {
                     continue;
                 }
 
-                if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
-                    Class<?> genericType = ReflectionUtils.getGenericType(field);
-                    if (genericType == null) {
-                        continue;
-                    }
-
-                    if (field.isAnnotationPresent(ElementCollection.class)
-                            && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
-                        searchFields.add(
-                                new SearchField(formatId(id), fieldName, genericType, true, true, filterTypes));
-                    } else if (field.isAnnotationPresent(OneToMany.class)
-                            || field.isAnnotationPresent(ManyToMany.class)) {
-                        searchFields.addAll(
-                                createNestedEntitySearchFields(id, fieldName, genericType, true, entityClass));
-                    }
-                } else {
-                    if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
-                        searchFields.add(
-                                new SearchField(formatId(id), fieldName, fieldTypeWrapper, false, filterTypes));
-                    } else if (field.isAnnotationPresent(ManyToOne.class)
-                            || field.isAnnotationPresent(OneToOne.class)) {
-                        searchFields.addAll(
-                                createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, false, entityClass));
-                    }
+                if (field.isAnnotationPresent(ElementCollection.class)
+                        && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
+                    searchFields.add(new SearchField(id, fieldName, genericType, true, true, filterTypes));
+                } else if (field.isAnnotationPresent(OneToMany.class) || field.isAnnotationPresent(ManyToMany.class)) {
+                    searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, true, entityClass));
+                }
+            } else {
+                if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
+                    searchFields.add(new SearchField(id, fieldName, fieldTypeWrapper, false, filterTypes));
+                } else if (field.isAnnotationPresent(ManyToOne.class) || field.isAnnotationPresent(OneToOne.class)) {
+                    searchFields.addAll(
+                            createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, false, entityClass));
                 }
             }
         }
@@ -107,24 +112,12 @@ public class SearchFieldCreator {
             String id, String fieldName, Class<?> fieldType, boolean distinct, Class<?> parentClass) {
         return createFromClass(fieldType, parentClass).stream()
                 .map(nestedSearchField -> new SearchField(
-                        formatId(id + capitalize(nestedSearchField.id())),
+                        namingConvention.mergeStrings(id, namingConvention.formatId(nestedSearchField.id())),
                         fieldName + "." + nestedSearchField.path(),
                         nestedSearchField.fieldType(),
                         nestedSearchField.elementCollection(),
                         distinct,
                         nestedSearchField.filterTypes()))
                 .collect(Collectors.toList());
-    }
-
-    private String capitalize(String input) {
-        return input.substring(0, 1).toUpperCase() + input.substring(1);
-    }
-
-    private String formatId(String id) {
-        return switch (namingConvention) {
-            case CAMEL_CASE -> id;
-            case SNAKE_CASE -> id.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase();
-            case DOT_CASE -> id.replaceAll("([a-z0-9])([A-Z])", "$1.$2").toLowerCase();
-        };
     }
 }
