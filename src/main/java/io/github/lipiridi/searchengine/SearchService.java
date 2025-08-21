@@ -41,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.hibernate.query.SortDirection;
+import org.hibernate.query.criteria.JpaOrder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -313,9 +314,15 @@ public class SearchService {
                     SearchField searchField = searchSortPair.searchField();
                     Path<?> path = joinHolder.getPath(root, searchField);
 
-                    return searchSortPair.sort().direction() == SortDirection.DESCENDING
+                    Sort sort = searchSortPair.sort();
+                    Order order = sort.direction() == SortDirection.DESCENDING
                             ? criteriaBuilder.desc(path)
                             : criteriaBuilder.asc(path);
+
+                    if (sort.nullPrecedence() != null) {
+                        ((JpaOrder) order).nullPrecedence(sort.nullPrecedence());
+                    }
+                    return order;
                 })
                 .toList();
 
