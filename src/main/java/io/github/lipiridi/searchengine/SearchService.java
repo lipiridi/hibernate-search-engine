@@ -11,6 +11,8 @@ import io.github.lipiridi.searchengine.dto.Filter;
 import io.github.lipiridi.searchengine.dto.SearchRequest;
 import io.github.lipiridi.searchengine.dto.SearchResponse;
 import io.github.lipiridi.searchengine.dto.Sort;
+import io.github.lipiridi.searchengine.dto.TotalElementsRequest;
+import io.github.lipiridi.searchengine.dto.TotalElementsResponse;
 import io.github.lipiridi.searchengine.util.FieldConvertUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -152,6 +154,24 @@ public class SearchService {
         return query.getResultList();
     }
 
+    public <E> TotalElementsResponse totalElements(TotalElementsRequest totalElementsRequest, Class<E> entityClass) {
+        var searchFields = searchFieldCreator.createFromClass(entityClass);
+
+        Map<String, SearchField> searchFieldMap =
+                searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
+
+        // validate filters
+        Optional.ofNullable(totalElementsRequest.filters())
+                .orElseGet(Collections::emptyList)
+                .forEach(filter -> validateExistingSearchField(searchFieldMap, filter.field()));
+
+        List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(totalElementsRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
+
+        long totalElements = totalElements(entityClass, searchFilterPairs, distinctNeeded);
+        return new TotalElementsResponse(totalElements);
+    }
+
     public <E> long totalElements(SearchRequest searchRequest, Class<E> entityClass) {
         var searchFields = searchFieldCreator.createFromClass(entityClass);
         return totalElements(searchRequest, entityClass, searchFields);
@@ -196,8 +216,19 @@ public class SearchService {
 
     @Nonnull
     private List<SearchFilterPair> createSearchFilterPairs(
+            TotalElementsRequest totalElementsRequest, Map<String, SearchField> searchFieldMap) {
+        return createSearchFilterPairs(searchFieldMap, totalElementsRequest.filters());
+    }
+
+    @Nonnull
+    private List<SearchFilterPair> createSearchFilterPairs(
             SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
-        var filters = searchRequest.filters();
+        return createSearchFilterPairs(searchFieldMap, searchRequest.filters());
+    }
+
+    @Nonnull
+    private List<SearchFilterPair> createSearchFilterPairs(
+            Map<String, SearchField> searchFieldMap, List<Filter> filters) {
         if (CollectionUtils.isEmpty(filters)) {
             return Collections.emptyList();
         }
