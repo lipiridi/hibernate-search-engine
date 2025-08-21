@@ -124,8 +124,8 @@ Here's an example of the search request JSON body output:
 
 ```json
 {
-  "page": "1",
-  "size": "100",
+  "page": 1,
+  "size": 100,
   "filters": [
     {
       "field": "description",

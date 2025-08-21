@@ -19,8 +19,6 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -33,7 +31,6 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,14 +48,12 @@ public class SearchService {
     private final EntityManager entityManager;
     private final SearchEngineProperties searchEngineProperties;
     private final SearchFieldCreator searchFieldCreator;
-    private final GraphBuilder graphBuilder;
 
     public SearchService(EntityManager entityManager, SearchEngineProperties searchEngineProperties) {
         this.entityManager = entityManager;
         this.searchEngineProperties = searchEngineProperties;
 
         searchFieldCreator = new SearchFieldCreator(searchEngineProperties.getNamingConvention());
-        graphBuilder = new GraphBuilder();
     }
 
     public <E> SearchResponse<E> search(SearchRequest searchRequest, Class<E> entityClass) {
@@ -141,10 +136,11 @@ public class SearchService {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
         Root<E> root = criteriaQuery.from(entityClass);
-        graphBuilder.addEagerJoins(root, entityClass);
+        GraphBuilder graphBuilder = new GraphBuilder();
+        graphBuilder.addEagerJoins(root, entityClass, null);
         criteriaQuery.distinct(distinctNeeded);
 
-        JoinHolder joinHolder = new JoinHolder();
+        JoinHolder joinHolder = new JoinHolder(graphBuilder.getFetchedAttributes());
         addFilters(root, criteriaBuilder, criteriaQuery, joinHolder, searchFilterPairs);
         addSorts(root, criteriaBuilder, criteriaQuery, joinHolder, searchSortPairs);
 
@@ -292,45 +288,6 @@ public class SearchService {
                 .toList();
 
         criteriaQuery.orderBy(orders);
-    }
-
-    private static class JoinHolder {
-
-        private final Map<String, Join<?, ?>> builtJoins = new HashMap<>();
-
-        public <Y> Path<Y> getPath(Root<?> root, SearchField searchField) {
-            String[] fields = searchField.path().split("\\.");
-            String firstField = fields[0];
-            int length = fields.length;
-
-            if (length == 1 && !searchField.elementCollection()) {
-                return root.get(firstField);
-            }
-
-            Join<?, ?> rootJoin = builtJoins.get(firstField);
-            if (rootJoin == null) {
-                rootJoin = root.join(firstField, JoinType.LEFT);
-                builtJoins.put(firstField, rootJoin);
-            }
-
-            if (searchField.elementCollection()) {
-                //noinspection unchecked
-                return (Path<Y>) rootJoin;
-            }
-
-            String currentPath = firstField;
-            for (int i = 1; i < length - 1; i++) {
-                currentPath = currentPath + "." + fields[i];
-                Join<?, ?> cachedJoin = builtJoins.get(currentPath);
-                if (cachedJoin == null) {
-                    cachedJoin = rootJoin.join(fields[i], JoinType.LEFT);
-                    builtJoins.put(currentPath, cachedJoin);
-                }
-                rootJoin = cachedJoin;
-            }
-
-            return rootJoin.get(fields[length - 1]);
-        }
     }
 
     private static class FilterQueryCriteriaConsumer implements Consumer<SearchFilterPair> {
