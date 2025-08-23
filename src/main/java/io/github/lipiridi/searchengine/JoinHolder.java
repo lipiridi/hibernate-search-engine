@@ -17,6 +17,7 @@ public class JoinHolder {
         builtJoins.putAll(joinedPaths);
     }
 
+    @SuppressWarnings("unchecked")
     public <Y> Path<Y> getPath(Root<?> root, SearchField searchField) {
         String[] fields = searchField.path().split("\\.");
         String firstField = fields[0];
@@ -43,7 +44,6 @@ public class JoinHolder {
             rootJoin = cachedJoin;
         }
 
-        //noinspection unchecked
         return searchField.elementCollection() ? (Path<Y>) rootJoin : (Path<Y>) rootJoin.get(fields[length - 1]);
     }
 }
