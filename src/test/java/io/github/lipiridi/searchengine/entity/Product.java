@@ -1,10 +1,9 @@
 package io.github.lipiridi.searchengine.entity;
 
-import io.github.lipiridi.searchengine.Searchable;
-import io.github.lipiridi.searchengine.entity.enumeration.LengthClass;
 import io.github.lipiridi.searchengine.entity.enumeration.WeightClass;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -14,9 +13,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrimaryKeyJoinColumn;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Currency;
@@ -28,6 +30,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.proxy.HibernateProxy;
@@ -37,35 +40,23 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @Setter
 @ToString
 @Entity
-@Table(name = Product.TABLE_NAME)
 @EntityListeners(AuditingEntityListener.class)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Product {
 
-    public static final String TABLE_NAME = "product";
-
-    @Searchable
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
 
-    @Searchable
     @ManyToOne(optional = false)
     @JoinColumn(nullable = false)
     Category category;
-
-    @ManyToOne
-    @JoinColumn
-    Image image;
 
     @Column(unique = true, length = 64)
     String sku;
 
     @Column(length = 14)
     String ean;
-
-    @Column(length = 64)
-    String barcode;
 
     @ManyToOne
     @JoinColumn
@@ -76,18 +67,6 @@ public class Product {
 
     @Column(precision = 15, scale = 3)
     BigDecimal price;
-
-    @Enumerated(EnumType.STRING)
-    LengthClass lengthClass;
-
-    @Column(precision = 15, scale = 8)
-    BigDecimal length;
-
-    @Column(precision = 15, scale = 8)
-    BigDecimal width;
-
-    @Column(precision = 15, scale = 8)
-    BigDecimal height;
 
     @Enumerated(EnumType.STRING)
     WeightClass weightClass;
@@ -101,24 +80,34 @@ public class Product {
     @UpdateTimestamp
     Instant updatedAt;
 
-    boolean enabled;
+    @Column(nullable = false)
+    Boolean enabled = false;
 
-    @Searchable
     @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "product", orphanRemoval = true, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
     Set<ProductDescription> descriptions = new HashSet<>();
 
     @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "product", orphanRemoval = true, cascade = CascadeType.ALL)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     Set<ProductAdditionalCategory> additionalCategories = new HashSet<>();
 
     @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "product", orphanRemoval = true, cascade = CascadeType.ALL)
-    Set<ProductAdditionalImage> additionalImages = new HashSet<>();
+    @ManyToMany(
+            fetch = FetchType.EAGER,
+            cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
+    @JoinTable(
+            name = "product_image",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "image_id"))
+    Set<Image> images = new HashSet<>();
 
-    @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "product", orphanRemoval = true, cascade = CascadeType.ALL)
-    Set<ProductAttribute> attributes = new HashSet<>();
+    @PrimaryKeyJoinColumn
+    @OneToOne(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    ProductAttribute attribute;
+
+    @BatchSize(size = 100)
+    @ElementCollection(fetch = FetchType.EAGER)
+    Set<String> tags = new HashSet<>();
 
     @Override
     public final boolean equals(Object o) {

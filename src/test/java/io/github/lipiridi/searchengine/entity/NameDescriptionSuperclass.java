@@ -16,7 +16,7 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public abstract class NameDescriptionSuperclass implements HasLocale {
     @Id
-    Integer languageId;
+    String locale;
 
     @Column(nullable = false)
     String name;

@@ -1,10 +1,11 @@
 package io.github.lipiridi.searchengine.entity;
 
-import io.github.lipiridi.searchengine.Searchable;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.ManyToMany;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -17,19 +18,19 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = Image.TABLE_NAME)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Image {
-
-    public static final String TABLE_NAME = "image";
 
     @Id
     UUID id;
 
-    @Searchable
     String src;
 
     String name;
+
+    @ToString.Exclude
+    @ManyToMany(mappedBy = "images")
+    Set<Product> products = new HashSet<>();
 
     @Override
     public final boolean equals(Object o) {

@@ -1,8 +1,3 @@
 spring:
   jpa:
     show-sql: true
-  sql:
-    init-mode: always
-jpa:
-  hibernate:
-    ddl-auto: create

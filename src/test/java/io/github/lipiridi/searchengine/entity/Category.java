@@ -1,7 +1,7 @@
 package io.github.lipiridi.searchengine.entity;
 
-import io.github.lipiridi.searchengine.Searchable;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -10,7 +10,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Objects;
@@ -28,13 +27,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = Category.TABLE_NAME)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Category {
 
-    public static final String TABLE_NAME = "category";
-
-    @Searchable
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
@@ -43,30 +38,28 @@ public class Category {
     @JoinColumn
     Category parent;
 
-    @Searchable
     @ManyToOne
     @JoinColumn
     Image image;
 
-    @Searchable
-    int sortOrder;
+    @Column(nullable = false)
+    Integer sortOrder = 0;
 
-    @Searchable
     @CreationTimestamp
     Instant createdAt;
 
     @UpdateTimestamp
     Instant updatedAt;
 
-    @Searchable
-    boolean enabled;
+    @Column(nullable = false)
+    Boolean enabled = false;
 
     @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "category", orphanRemoval = true, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
     Set<CategoryDescription> descriptions = new HashSet<>();
 
     @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "category", orphanRemoval = true, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
     Set<CategoryAttribute> attributes = new HashSet<>();
 
     @Override

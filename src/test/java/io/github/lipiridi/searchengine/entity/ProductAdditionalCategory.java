@@ -5,7 +5,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 import lombok.AccessLevel;
@@ -20,12 +19,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = ProductAdditionalCategory.TABLE_NAME)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @IdClass(ProductAdditionalCategory.EntityId.class)
 public class ProductAdditionalCategory {
-
-    public static final String TABLE_NAME = "product_additional_category";
 
     @Id
     @ManyToOne

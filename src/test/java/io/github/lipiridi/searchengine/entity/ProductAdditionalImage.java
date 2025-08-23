@@ -1,11 +1,11 @@
 package io.github.lipiridi.searchengine.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 import lombok.AccessLevel;
@@ -20,12 +20,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = ProductAdditionalImage.TABLE_NAME)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @IdClass(ProductAdditionalImage.EntityId.class)
 public class ProductAdditionalImage {
-
-    public static final String TABLE_NAME = "product_additional_image";
 
     @Id
     @ManyToOne
@@ -37,7 +34,8 @@ public class ProductAdditionalImage {
     @JoinColumn
     Image image;
 
-    int sortOrder;
+    @Column(nullable = false)
+    Integer sortOrder = 0;
 
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)

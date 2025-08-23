@@ -1,6 +1,5 @@
 package io.github.lipiridi.searchengine.entity;
 
-import io.github.lipiridi.searchengine.Searchable;
 import io.github.lipiridi.searchengine.entity.enumeration.InputType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -12,7 +11,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -27,13 +25,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = Attribute.TABLE_NAME)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Attribute {
 
-    public static final String TABLE_NAME = "attribute";
-
-    @Searchable
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
@@ -42,10 +36,11 @@ public class Attribute {
     @Column(nullable = false)
     InputType inputType;
 
-    boolean enabled;
+    @Column(nullable = false)
+    Boolean enabled = false;
 
     @ToString.Exclude
-    @OneToMany(fetch = FetchType.EAGER, mappedBy = "attribute", orphanRemoval = true, cascade = CascadeType.ALL)
+    @OneToMany(fetch = FetchType.EAGER, orphanRemoval = true, cascade = CascadeType.ALL)
     Set<AttributeDescription> descriptions = new HashSet<>();
 
     @Override

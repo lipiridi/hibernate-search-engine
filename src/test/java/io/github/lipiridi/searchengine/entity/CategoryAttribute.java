@@ -1,10 +1,10 @@
 package io.github.lipiridi.searchengine.entity;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 import lombok.AccessLevel;
@@ -19,12 +19,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = CategoryAttribute.TABLE_NAME)
 @IdClass(CategoryAttribute.EntityId.class)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CategoryAttribute {
-
-    public static final String TABLE_NAME = "category_attribute";
 
     @Id
     @ManyToOne
@@ -34,11 +31,14 @@ public class CategoryAttribute {
     @ManyToOne
     Category category;
 
-    boolean mandatory;
+    @Column(nullable = false)
+    Boolean mandatory = false;
 
-    boolean useInFilters;
+    @Column(nullable = false)
+    Boolean useInFilters = false;
 
-    int sortOrder;
+    @Column(nullable = false)
+    Integer sortOrder = 0;
 
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)

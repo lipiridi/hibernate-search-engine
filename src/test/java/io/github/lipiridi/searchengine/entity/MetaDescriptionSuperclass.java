@@ -1,6 +1,5 @@
 package io.github.lipiridi.searchengine.entity;
 
-import io.github.lipiridi.searchengine.Searchable;
 import jakarta.persistence.Id;
 import jakarta.persistence.Lob;
 import jakarta.persistence.MappedSuperclass;
@@ -17,11 +16,9 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public abstract class MetaDescriptionSuperclass implements HasLocale {
 
-    @Searchable
     @Id
-    Integer languageId;
+    String locale;
 
-    @Searchable
     String title;
 
     @Lob

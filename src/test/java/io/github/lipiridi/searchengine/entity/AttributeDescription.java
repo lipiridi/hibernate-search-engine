@@ -4,7 +4,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 import lombok.AccessLevel;
@@ -19,12 +18,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = AttributeDescription.TABLE_NAME)
 @IdClass(AttributeDescription.EntityId.class)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AttributeDescription extends NameDescriptionSuperclass {
-
-    public static final String TABLE_NAME = "attribute_description";
 
     @Id
     @ManyToOne
@@ -33,7 +29,7 @@ public class AttributeDescription extends NameDescriptionSuperclass {
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class EntityId implements Serializable {
-        Integer languageId;
+        String locale;
         Attribute attribute;
     }
 
@@ -49,14 +45,14 @@ public class AttributeDescription extends NameDescriptionSuperclass {
                 : this.getClass();
         if (thisEffectiveClass != oEffectiveClass) return false;
         AttributeDescription that = (AttributeDescription) o;
-        return getLanguageId() != null
-                && Objects.equals(getLanguageId(), that.getLanguageId())
+        return getLocale() != null
+                && Objects.equals(getLocale(), that.getLocale())
                 && getAttribute() != null
                 && Objects.equals(getAttribute(), that.getAttribute());
     }
 
     @Override
     public final int hashCode() {
-        return Objects.hash(getLanguageId(), getAttribute());
+        return Objects.hash(getLocale(), getAttribute());
     }
 }

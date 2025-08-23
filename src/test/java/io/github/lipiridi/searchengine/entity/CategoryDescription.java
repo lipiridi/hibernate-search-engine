@@ -4,7 +4,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
 import lombok.AccessLevel;
@@ -19,12 +18,9 @@ import org.hibernate.proxy.HibernateProxy;
 @Setter
 @ToString
 @Entity
-@Table(name = CategoryDescription.TABLE_NAME)
 @IdClass(CategoryDescription.EntityId.class)
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class CategoryDescription extends MetaDescriptionSuperclass {
-
-    public static final String TABLE_NAME = "category_description";
 
     @Id
     @ManyToOne
@@ -33,7 +29,7 @@ public class CategoryDescription extends MetaDescriptionSuperclass {
     @Data
     @FieldDefaults(level = AccessLevel.PRIVATE)
     public static class EntityId implements Serializable {
-        Integer languageId;
+        String locale;
         Category category;
     }
 
@@ -51,12 +47,12 @@ public class CategoryDescription extends MetaDescriptionSuperclass {
         CategoryDescription that = (CategoryDescription) o;
         return getCategory() != null
                 && Objects.equals(getCategory(), that.getCategory())
-                && getLanguageId() != null
-                && Objects.equals(getLanguageId(), that.getLanguageId());
+                && getLocale() != null
+                && Objects.equals(getLocale(), that.getLocale());
     }
 
     @Override
     public final int hashCode() {
-        return Objects.hash(getCategory(), getLanguageId());
+        return Objects.hash(getCategory(), getLocale());
     }
 }
