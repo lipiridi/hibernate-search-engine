@@ -10,7 +10,7 @@ import java.util.Set;
 @FilledFilterValue
 public record Filter(@NotBlank String field, @NotNull FilterType type, @Size(min = 1) Set<@NotBlank String> value) {
 
-    public Filter(String field, FilterType type, String value) {
+    public Filter(@NotBlank String field, @NotNull FilterType type, @NotBlank String value) {
         this(field, type, Set.of(value));
     }
 }

@@ -1,12 +1,16 @@
 package io.github.lipiridi.searchengine.entity;
 
-import jakarta.persistence.Column;
+import io.github.lipiridi.searchengine.Searchable;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MapsId;
-import jakarta.persistence.OneToOne;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.Currency;
 import java.util.Objects;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -17,22 +21,43 @@ import org.hibernate.proxy.HibernateProxy;
 @Getter
 @Setter
 @ToString
-@Entity
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ProductAttribute {
+@Entity
+public class SimpleEntity {
 
+    @Searchable
     @Id
-    private Long productId;
+    UUID id;
 
-    @OneToOne
-    @MapsId
-    Product product;
+    @Searchable
+    String name;
 
-    @ManyToOne
-    Attribute attribute;
+    @Searchable
+    Boolean active;
 
-    @Column(nullable = false)
-    String attributeValue;
+    @Searchable
+    Long quantity;
+
+    @Searchable
+    Float weight;
+
+    @Searchable
+    BigDecimal price;
+
+    @Searchable
+    Instant createdAt;
+
+    @Searchable
+    ZonedDateTime commentedAt;
+
+    @Searchable
+    Currency currency;
+
+    @Searchable
+    Operation operation;
+
+    @Enumerated(EnumType.STRING)
+    Operation operationAsString;
 
     @Override
     public final boolean equals(Object o) {
@@ -45,8 +70,8 @@ public class ProductAttribute {
                 ? ((HibernateProxy) this).getHibernateLazyInitializer().getPersistentClass()
                 : this.getClass();
         if (thisEffectiveClass != oEffectiveClass) return false;
-        ProductAttribute that = (ProductAttribute) o;
-        return getProductId() != null && Objects.equals(getProductId(), that.getProductId());
+        SimpleEntity that = (SimpleEntity) o;
+        return getId() != null && Objects.equals(getId(), that.getId());
     }
 
     @Override
