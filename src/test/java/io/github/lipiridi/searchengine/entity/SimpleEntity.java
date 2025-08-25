@@ -87,6 +87,9 @@ public class SimpleEntity {
     @Enumerated(EnumType.STRING)
     Operation operationAsString;
 
+    @Searchable
+    String nullStringValue;
+
     @Override
     public final boolean equals(Object o) {
         if (this == o) return true;

@@ -11,6 +11,6 @@ import java.util.Set;
 public record Filter(@NotBlank String field, @NotNull FilterType type, @Size(min = 1) Set<@NotBlank String> value) {
 
     public Filter(@NotBlank String field, @NotNull FilterType type, @NotBlank String value) {
-        this(field, type, Set.of(value));
+        this(field, type, value == null ? null : Set.of(value));
     }
 }
