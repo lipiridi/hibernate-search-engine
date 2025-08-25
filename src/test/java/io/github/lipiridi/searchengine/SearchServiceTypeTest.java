@@ -33,9 +33,6 @@ class SearchServiceTypeTest {
     @BeforeAll
     static void beforeAll(@Autowired SimpleEntityRepository simpleEntityRepository) {
 
-        // Ensure a clean state
-        // simpleEntityRepository.deleteAllInBatch();
-
         List<SimpleEntity> entities = new ArrayList<>(50);
         Instant baseInstant = Instant.parse("2020-01-01T00:00:00Z");
         LocalDate baseDate = LocalDate.parse("2020-01-01");

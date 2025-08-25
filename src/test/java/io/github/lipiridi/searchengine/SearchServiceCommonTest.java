@@ -14,13 +14,19 @@ import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.jpa.show-sql=true")
+@ExtendWith(OutputCaptureExtension.class)
 class SearchServiceCommonTest {
 
     @Autowired
@@ -78,5 +84,60 @@ class SearchServiceCommonTest {
         SearchResponse<SimpleEntity> response = searchService.search(searchRequest, SimpleEntity.class);
         Assertions.assertEquals(20, response.elements());
         Assertions.assertEquals(50, response.totalElements());
+    }
+
+    @Test
+    void search_WithoutTotal_ReturnsTotalNull() {
+        SearchRequest searchRequest = new SearchRequest(1, 20, null, null, true);
+        SearchResponse<SimpleEntity> response = searchService.search(searchRequest, SimpleEntity.class);
+        Assertions.assertNull(response.totalElements());
+    }
+
+    @Test
+    void search_StandardSearchRequest_SelectAndCountQueries(CapturedOutput output) {
+        assertCapturedQueryLog(output, false);
+    }
+
+    @Test
+    void search_SearchRequestWithoutTotal_SelectOnlyQuery(CapturedOutput output) {
+        assertCapturedQueryLog(output, true);
+    }
+
+    private void assertCapturedQueryLog(CapturedOutput output, boolean withoutTotals) {
+        // Capture baseline output before executing the search to exclude startup DDL/DML logs
+        String baseline = (output.getOut() + "\n" + output.getErr());
+
+        // When: perform a paged search that should trigger a select and a count query
+        SearchRequest searchRequest = new SearchRequest(1, 1, null, null, withoutTotals);
+        searchService.search(searchRequest, SimpleEntity.class);
+
+        // Then: capture console output
+        String after = (output.getOut() + "\n" + output.getErr());
+
+        // Analyze only the newly appended part to avoid interference from other logs
+        String deltaLog = after.length() >= baseline.length() ? after.substring(baseline.length()) : after;
+
+        int countSelectCount = countMatches(
+                deltaLog, Pattern.compile("\\bselect\\s+count\\b", Pattern.CASE_INSENSITIVE | Pattern.DOTALL));
+        int countSimpleSelect = countMatches(
+                deltaLog, Pattern.compile("\\bselect\\b(?!\\s+count)", Pattern.CASE_INSENSITIVE | Pattern.DOTALL));
+
+        int expectedSelectCount = withoutTotals ? 0 : 1;
+        // Expect exactly one simple select and exactly one select count
+        if (countSimpleSelect != 1 || countSelectCount != expectedSelectCount) {
+            String debugTail = deltaLog.length() > 4000 ? deltaLog.substring(deltaLog.length() - 4000) : deltaLog;
+            Assertions.fail(
+                    "Expected exactly 1 simple SELECT and %d SELECT COUNT during search, but found: simpleSelect=%d, selectCount=%d\nAppended logs:\n%s"
+                            .formatted(expectedSelectCount, countSimpleSelect, countSelectCount, debugTail));
+        }
+    }
+
+    private static int countMatches(String log, Pattern pattern) {
+        Matcher matcher = pattern.matcher(log);
+        int count = 0;
+        while (matcher.find()) {
+            count++;
+        }
+        return count;
     }
 }
