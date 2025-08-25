@@ -7,6 +7,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.Currency;
 import java.util.Objects;
@@ -16,12 +19,14 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
+import lombok.experimental.FieldNameConstants;
 import org.hibernate.proxy.HibernateProxy;
 
 @Getter
 @Setter
 @ToString
 @FieldDefaults(level = AccessLevel.PRIVATE)
+@FieldNameConstants
 @Entity
 public class SimpleEntity {
 
@@ -30,32 +35,55 @@ public class SimpleEntity {
     UUID id;
 
     @Searchable
-    String name;
+    String stringValue;
 
     @Searchable
-    Boolean active;
+    Boolean booleanValue;
 
     @Searchable
-    Long quantity;
+    Byte byteValue;
 
     @Searchable
-    Float weight;
+    Short shortValue;
 
     @Searchable
-    BigDecimal price;
+    Integer intValue;
 
     @Searchable
-    Instant createdAt;
+    Long longValue;
 
     @Searchable
-    ZonedDateTime commentedAt;
+    Double doubleValue;
+
+    @Searchable
+    Float floatValue;
+
+    @Searchable
+    BigDecimal bigDecimalValue;
+
+    @Searchable
+    Instant instantValue;
+
+    @Searchable
+    LocalDate localDateValue;
+
+    @Searchable
+    LocalDateTime localDateTimeValue;
+
+    @Searchable
+    ZonedDateTime zonedDateTimeValue;
+
+    @Searchable
+    OffsetDateTime offsetDateTimeValue;
 
     @Searchable
     Currency currency;
 
     @Searchable
+    @Enumerated
     Operation operation;
 
+    @Searchable
     @Enumerated(EnumType.STRING)
     Operation operationAsString;
 

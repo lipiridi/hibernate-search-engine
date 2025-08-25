@@ -42,15 +42,15 @@ class SearchServiceCommonTest {
             UUID id = UUID.nameUUIDFromBytes(("simple-" + i).getBytes(StandardCharsets.UTF_8));
             e.setId(id);
 
-            e.setName("Name " + i);
-            e.setActive(i % 2 == 0);
-            e.setQuantity((long) i);
-            e.setWeight((float) (i * 1.1));
-            e.setPrice(BigDecimal.valueOf(i * 10L));
+            e.setStringValue("Name " + i);
+            e.setBooleanValue(i % 2 == 0);
+            e.setLongValue((long) i);
+            e.setFloatValue((float) (i * 1.1));
+            e.setBigDecimalValue(BigDecimal.valueOf(i * 10L));
 
             Instant created = baseInstant.plusSeconds(i);
-            e.setCreatedAt(created);
-            e.setCommentedAt(ZonedDateTime.ofInstant(created, utc));
+            e.setInstantValue(created);
+            e.setZonedDateTimeValue(ZonedDateTime.ofInstant(created, utc));
 
             e.setCurrency(i % 2 == 0 ? Currency.getInstance("USD") : Currency.getInstance("EUR"));
 
