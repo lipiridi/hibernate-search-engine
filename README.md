@@ -10,8 +10,7 @@ improving data retrieval efficiency.
 ## Features
 
 - **Annotation-based Searchable Entities:** Simply annotate the fields of your entity classes with `@Searchable` to
-  enable
-  search functionality.
+  enable search functionality.
 
 
 - **Wide support:** Use `@Searchable` with primitive types and various relationships, including `@OneToOne`,
@@ -155,6 +154,107 @@ Here's an example of the search request JSON body output:
   ]
 }
 ```
+
+## Filters and supported types
+
+The library supports a rich set of filters. Each filter is available only for specific Java types. If a filter is used
+with an unsupported field type, the library throws an error with a list of available filters for that field.
+
+Supported filters:
+
+- `IS_NULL`, `IS_NOT_NULL`: checks whether the field is null or not. Value is not required.
+- `EQUAL`, `NOT_EQUAL`: exact equality/inequality comparison.
+- `IN`, `NOT_IN`: field value is contained/not contained in the provided list. Provide an array of values in the request.
+- `LIKE`, `NOT_LIKE`: case-insensitive substring match for String fields only.
+- `GREATER_THAN`, `LESS_THAN`, `GREATER_THAN_OR_EQUAL`, `LESS_THAN_OR_EQUAL`: comparison filters for comparable types.
+
+Type groups used by filters:
+
+- Common types (for `IS_NULL`/`IS_NOT_NULL`, `EQUAL`/`NOT_EQUAL`, `IN`/`NOT_IN`):
+    - String, Boolean, UUID, Currency, Enum
+    - Plus all Comparable types listed below
+- Comparable types (for  GREATER/LESS variants in addition to common filters):
+    - Byte, Short, Integer, Long, Double, Float, BigDecimal
+    - Instant, LocalDate, LocalDateTime, ZonedDateTime, OffsetDateTime
+- `LIKE`/`NOT_LIKE`: String only
+
+> [!NOTE]
+> - Null handling: Only `IS_NULL` and `IS_NOT_NULL` allow a null value. All other filters require a non-null value.
+> - `IN`/`NOT_IN`: supply value as an array. If the array is empty, no matches will be found.
+> - When a field is annotated with @Searchable and additionally restricts filterTypes, only that subset is allowed.
+
+## Value conversion rules
+
+The library converts incoming JSON string values to target Java types automatically:
+
+- Numbers: Byte, Short, Integer, Long, Float, Double, BigDecimal are parsed from their string representations.
+- Booleans: "true"/"false" (case-insensitive) to Boolean.
+- UUID: standard UUID format.
+- Currency: ISO 4217 currency code (e.g. "USD", "eur").
+- Enums: by name (case-insensitive; value is uppercased) or by ordinal if a numeric value is provided.
+- Temporal types:
+    - ISO-8601 strings are supported for Instant, LocalDate, LocalDateTime, ZonedDateTime, OffsetDateTime.
+    - Epoch timestamps are also supported for time types:
+        - Pure integer is interpreted as epoch milliseconds.
+        - Fractional numbers are supported and interpreted smartly as seconds with fractional part (or milliseconds if
+          the integer part is very large). The library converts them to the requested time type using UTC.
+
+If conversion fails, the request is rejected with a clear error message indicating the field and value.
+
+## Total elements endpoint (count only)
+
+When you need only the total number of elements that match filters (without pagination and sorting), use
+TotalElementsRequest/TotalElementsResponse.
+
+Java API:
+
+- searchService.totalElements(TotalElementsRequest request, Class<E> entityClass)
+- Returns TotalElementsResponse with a single field: totalElements
+
+Example request:
+
+```json
+{
+  "filters": [
+    {
+      "field": "status",
+      "type": "EQUAL",
+      "value": [
+        "ACTIVE"
+      ]
+    },
+    {
+      "field": "createdAt",
+      "type": "GREATER_THAN_OR_EQUAL",
+      "value": [
+        "2024-01-01T00:00:00Z"
+      ]
+    }
+  ]
+}
+```
+
+Example response:
+
+```json
+{
+  "totalElements": 42
+}
+```
+
+Notes:
+
+- The same validation rules and type conversions as for SearchRequest apply here.
+- Distinct is applied automatically when filters require joins over collections to avoid overcounting.
+
+## Additional validations and behavior
+
+- Invalid filter type: If a filter is not allowed for a field, an error is thrown with available options for that field.
+- Missing value: For filters other than `IS_NULL`/`IS_NOT_NULL`, a null value triggers a validation error.
+- Sorting limitations: Sorting by fields that require distinct over joined collections is prohibited and will be
+  rejected.
+- Field names: The effective field id depends on the configured naming convention and can include nested properties from
+  relationships annotated with @Searchable.
 
 ## License
 

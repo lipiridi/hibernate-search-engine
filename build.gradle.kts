@@ -1,4 +1,4 @@
-import java.util.*
+import java.util.Base64
 
 plugins {
     `java-library`
@@ -34,9 +34,9 @@ repositories {
 dependencies {
     val springBootVersion = "3.5.4"
 
-    implementation(platform("org.springframework.boot:spring-boot-dependencies:${springBootVersion}"))
-    annotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:${springBootVersion}"))
-    testAnnotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:${springBootVersion}"))
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    annotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    testAnnotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-validation")
@@ -67,7 +67,9 @@ publishing {
 
                 name.set("Hibernate Search Engine")
                 url.set("https://github.com/lipiridi/hibernate-search-engine")
-                description.set("Hibernate Search Engine simplifies the process of querying databases by any field, offering convenient pagination support")
+                description.set(
+                    "Hibernate Search Engine simplifies the process of querying databases by any field, offering convenient pagination support",
+                )
 
                 developers {
                     developer {
@@ -114,8 +116,12 @@ mavenCentral {
 
 tasks.jar {
     manifest {
-        attributes(mapOf("Implementation-Title" to project.name,
-                "Implementation-Version" to project.version))
+        attributes(
+            mapOf(
+                "Implementation-Title" to project.name,
+                "Implementation-Version" to project.version,
+            ),
+        )
     }
 }
 
@@ -125,5 +131,9 @@ spotless {
 
         palantirJavaFormat()
         removeWildcardImports()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint()
     }
 }
