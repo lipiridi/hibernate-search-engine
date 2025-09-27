@@ -11,6 +11,8 @@ import io.github.lipiridi.searchengine.dto.Filter;
 import io.github.lipiridi.searchengine.dto.SearchRequest;
 import io.github.lipiridi.searchengine.dto.SearchResponse;
 import io.github.lipiridi.searchengine.dto.Sort;
+import io.github.lipiridi.searchengine.dto.TotalElementsRequest;
+import io.github.lipiridi.searchengine.dto.TotalElementsResponse;
 import io.github.lipiridi.searchengine.util.FieldConvertUtils;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
@@ -19,8 +21,6 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Join;
-import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Path;
 import jakarta.persistence.criteria.Predicate;
@@ -33,7 +33,6 @@ import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.hibernate.query.SortDirection;
+import org.hibernate.query.criteria.JpaOrder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
@@ -51,14 +51,12 @@ public class SearchService {
     private final EntityManager entityManager;
     private final SearchEngineProperties searchEngineProperties;
     private final SearchFieldCreator searchFieldCreator;
-    private final GraphBuilder graphBuilder;
 
     public SearchService(EntityManager entityManager, SearchEngineProperties searchEngineProperties) {
         this.entityManager = entityManager;
         this.searchEngineProperties = searchEngineProperties;
 
         searchFieldCreator = new SearchFieldCreator(searchEngineProperties.getNamingConvention());
-        graphBuilder = new GraphBuilder();
     }
 
     public <E> SearchResponse<E> search(SearchRequest searchRequest, Class<E> entityClass) {
@@ -105,8 +103,8 @@ public class SearchService {
 
         List<E> entities =
                 fetchEntities(searchRequest, entityClass, searchFilterPairs, searchSortPairs, distinctNeeded);
-        long totalNumber =
-                searchRequest.withoutTotals() ? 0 : totalElements(entityClass, searchFilterPairs, distinctNeeded);
+        Long totalNumber =
+                searchRequest.withoutTotals() ? null : totalElements(entityClass, searchFilterPairs, distinctNeeded);
 
         List<M> mappedEntities = mapper == null
                 ? (List<M>) entities
@@ -142,10 +140,11 @@ public class SearchService {
         CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
         CriteriaQuery<E> criteriaQuery = criteriaBuilder.createQuery(entityClass);
         Root<E> root = criteriaQuery.from(entityClass);
-        graphBuilder.addEagerJoins(root, entityClass);
+        GraphBuilder graphBuilder = new GraphBuilder();
+        graphBuilder.addEagerJoins(root, entityClass, null);
         criteriaQuery.distinct(distinctNeeded);
 
-        JoinHolder joinHolder = new JoinHolder();
+        JoinHolder joinHolder = new JoinHolder(graphBuilder.getFetchedAttributes());
         addFilters(root, criteriaBuilder, criteriaQuery, joinHolder, searchFilterPairs);
         addSorts(root, criteriaBuilder, criteriaQuery, joinHolder, searchSortPairs);
 
@@ -154,6 +153,24 @@ public class SearchService {
         query.setMaxResults(searchRequest.size());
 
         return query.getResultList();
+    }
+
+    public <E> TotalElementsResponse totalElements(TotalElementsRequest totalElementsRequest, Class<E> entityClass) {
+        var searchFields = searchFieldCreator.createFromClass(entityClass);
+
+        Map<String, SearchField> searchFieldMap =
+                searchFields.stream().collect(Collectors.toMap(SearchField::id, Function.identity()));
+
+        // validate filters
+        Optional.ofNullable(totalElementsRequest.filters())
+                .orElseGet(Collections::emptyList)
+                .forEach(filter -> validateExistingSearchField(searchFieldMap, filter.field()));
+
+        List<SearchFilterPair> searchFilterPairs = createSearchFilterPairs(totalElementsRequest, searchFieldMap);
+        boolean distinctNeeded = isDistinctNeeded(searchFilterPairs);
+
+        long totalElements = totalElements(entityClass, searchFilterPairs, distinctNeeded);
+        return new TotalElementsResponse(totalElements);
     }
 
     public <E> long totalElements(SearchRequest searchRequest, Class<E> entityClass) {
@@ -200,8 +217,19 @@ public class SearchService {
 
     @Nonnull
     private List<SearchFilterPair> createSearchFilterPairs(
+            TotalElementsRequest totalElementsRequest, Map<String, SearchField> searchFieldMap) {
+        return createSearchFilterPairs(searchFieldMap, totalElementsRequest.filters());
+    }
+
+    @Nonnull
+    private List<SearchFilterPair> createSearchFilterPairs(
             SearchRequest searchRequest, Map<String, SearchField> searchFieldMap) {
-        var filters = searchRequest.filters();
+        return createSearchFilterPairs(searchFieldMap, searchRequest.filters());
+    }
+
+    @Nonnull
+    private List<SearchFilterPair> createSearchFilterPairs(
+            Map<String, SearchField> searchFieldMap, List<Filter> filters) {
         if (CollectionUtils.isEmpty(filters)) {
             return Collections.emptyList();
         }
@@ -286,52 +314,19 @@ public class SearchService {
                     SearchField searchField = searchSortPair.searchField();
                     Path<?> path = joinHolder.getPath(root, searchField);
 
-                    return searchSortPair.sort().direction() == SortDirection.DESCENDING
+                    Sort sort = searchSortPair.sort();
+                    Order order = sort.direction() == SortDirection.DESCENDING
                             ? criteriaBuilder.desc(path)
                             : criteriaBuilder.asc(path);
+
+                    if (sort.nullPrecedence() != null) {
+                        ((JpaOrder) order).nullPrecedence(sort.nullPrecedence());
+                    }
+                    return order;
                 })
                 .toList();
 
         criteriaQuery.orderBy(orders);
-    }
-
-    private static class JoinHolder {
-
-        private final Map<String, Join<?, ?>> builtJoins = new HashMap<>();
-
-        public <Y> Path<Y> getPath(Root<?> root, SearchField searchField) {
-            String[] fields = searchField.path().split("\\.");
-            String firstField = fields[0];
-            int length = fields.length;
-
-            if (length == 1 && !searchField.elementCollection()) {
-                return root.get(firstField);
-            }
-
-            Join<?, ?> rootJoin = builtJoins.get(firstField);
-            if (rootJoin == null) {
-                rootJoin = root.join(firstField, JoinType.LEFT);
-                builtJoins.put(firstField, rootJoin);
-            }
-
-            if (searchField.elementCollection()) {
-                //noinspection unchecked
-                return (Path<Y>) rootJoin;
-            }
-
-            String currentPath = firstField;
-            for (int i = 1; i < length - 1; i++) {
-                currentPath = currentPath + "." + fields[i];
-                Join<?, ?> cachedJoin = builtJoins.get(currentPath);
-                if (cachedJoin == null) {
-                    cachedJoin = rootJoin.join(fields[i], JoinType.LEFT);
-                    builtJoins.put(currentPath, cachedJoin);
-                }
-                rootJoin = cachedJoin;
-            }
-
-            return rootJoin.get(fields[length - 1]);
-        }
     }
 
     private static class FilterQueryCriteriaConsumer implements Consumer<SearchFilterPair> {

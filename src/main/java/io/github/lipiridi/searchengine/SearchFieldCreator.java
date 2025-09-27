@@ -3,7 +3,12 @@ package io.github.lipiridi.searchengine;
 import io.github.lipiridi.searchengine.config.SearchEngineProperties;
 import io.github.lipiridi.searchengine.util.ReflectionUtils;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.*;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -13,7 +18,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -60,43 +64,48 @@ public class SearchFieldCreator {
         }
 
         for (Field field : entityClass.getDeclaredFields()) {
-            if (field.isAnnotationPresent(Searchable.class)) {
-                Searchable searchableAnnotation = field.getAnnotation(Searchable.class);
-                String fieldName = field.getName();
-                String id = Objects.requireNonNull(searchableAnnotation).value().isEmpty()
-                        ? namingConvention.formatId(fieldName)
-                        : searchableAnnotation.value();
-                Set<FilterType> filterTypes =
-                        Arrays.stream(searchableAnnotation.filterTypes()).collect(Collectors.toSet());
-                Class<?> fieldTypeWrapper = ReflectionUtils.getPrimitiveWrapper(field.getType());
+            if (!field.isAnnotationPresent(Searchable.class)) {
+                continue;
+            }
+            Class<?> fieldTypeWrapper = ReflectionUtils.getPrimitiveWrapper(field.getType());
 
-                // Prevent stack overflow
-                if (fieldTypeWrapper.equals(entityClass) || fieldTypeWrapper.equals(parentClass)) {
+            Class<?> genericType = null;
+            if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
+                genericType = ReflectionUtils.getGenericType(field);
+            }
+
+            // Prevent stack overflow
+            if (fieldTypeWrapper.equals(entityClass)
+                    || fieldTypeWrapper.equals(parentClass)
+                    || genericType != null && genericType.equals(parentClass)) {
+                continue;
+            }
+
+            Searchable searchableAnnotation = field.getAnnotation(Searchable.class);
+            String fieldName = field.getName();
+            String id = searchableAnnotation.value().isEmpty()
+                    ? namingConvention.formatId(fieldName)
+                    : searchableAnnotation.value();
+            Set<FilterType> filterTypes =
+                    Arrays.stream(searchableAnnotation.filterTypes()).collect(Collectors.toSet());
+
+            if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
+                if (genericType == null) {
                     continue;
                 }
 
-                if (Collection.class.isAssignableFrom(fieldTypeWrapper)) {
-                    Class<?> genericType = ReflectionUtils.getGenericType(field);
-                    if (genericType == null || genericType.equals(parentClass)) {
-                        continue;
-                    }
-
-                    if (field.isAnnotationPresent(ElementCollection.class)
-                            && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
-                        searchFields.add(new SearchField(id, fieldName, genericType, true, true, filterTypes));
-                    } else if (field.isAnnotationPresent(OneToMany.class)
-                            || field.isAnnotationPresent(ManyToMany.class)) {
-                        searchFields.addAll(
-                                createNestedEntitySearchFields(id, fieldName, genericType, true, entityClass));
-                    }
-                } else {
-                    if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
-                        searchFields.add(new SearchField(id, fieldName, fieldTypeWrapper, false, filterTypes));
-                    } else if (field.isAnnotationPresent(ManyToOne.class)
-                            || field.isAnnotationPresent(OneToOne.class)) {
-                        searchFields.addAll(
-                                createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, false, entityClass));
-                    }
+                if (field.isAnnotationPresent(ElementCollection.class)
+                        && SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(genericType))) {
+                    searchFields.add(new SearchField(id, fieldName, genericType, true, true, filterTypes));
+                } else if (field.isAnnotationPresent(OneToMany.class) || field.isAnnotationPresent(ManyToMany.class)) {
+                    searchFields.addAll(createNestedEntitySearchFields(id, fieldName, genericType, true, entityClass));
+                }
+            } else {
+                if (SUPPORTED_CLASSES.contains(ReflectionUtils.getCastClass(fieldTypeWrapper))) {
+                    searchFields.add(new SearchField(id, fieldName, fieldTypeWrapper, false, filterTypes));
+                } else if (field.isAnnotationPresent(ManyToOne.class) || field.isAnnotationPresent(OneToOne.class)) {
+                    searchFields.addAll(
+                            createNestedEntitySearchFields(id, fieldName, fieldTypeWrapper, false, entityClass));
                 }
             }
         }

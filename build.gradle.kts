@@ -1,18 +1,16 @@
 import java.util.Base64
 
-fun properties(key: String) = project.findProperty(key)?.toString() ?: ""
-
 plugins {
     `java-library`
     `maven-publish`
     signing
 
-    id("com.diffplug.spotless") version "7.0.4"
+    id("com.diffplug.spotless") version "7.2.1"
     id("tech.yanand.maven-central-publish") version "1.3.0"
 }
 
 group = "io.github.lipiridi"
-version = "1.2.0"
+version = "1.3.0"
 
 java {
     withSourcesJar()
@@ -34,11 +32,26 @@ repositories {
 }
 
 dependencies {
-    val springBootVersion = "3.5.0"
+    val springBootVersion = "3.5.4"
 
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:$springBootVersion")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:$springBootVersion")
-    implementation("org.springframework.boot:spring-boot-starter-validation:$springBootVersion")
+    implementation(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    annotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    testAnnotationProcessor(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testCompileOnly("org.projectlombok:lombok")
+    testAnnotationProcessor("org.projectlombok:lombok")
+    testRuntimeOnly("com.h2database:h2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
+    jvmArgs = listOf("-Xshare:off", "-XX:+EnableDynamicAgentLoading")
 }
 
 tasks.withType<Javadoc> {
@@ -90,8 +103,8 @@ signing {
 mavenCentral {
     // Token for Publisher API calls obtained from Sonatype official,
     // it should be Base64 encoded of "username:password".
-    val username = properties("mavenCentralUsername")
-    val password = properties("mavenCentralPassword")
+    val username = project.findProperty("mavenCentralUsername")?.toString()
+    val password = project.findProperty("mavenCentralPassword")?.toString()
     val toEncode = "$username:$password"
     val encodedAuthToken = Base64.getEncoder().encodeToString(toEncode.toByteArray())
 
@@ -115,7 +128,9 @@ tasks.jar {
 spotless {
     java {
         target("src/*/java/**/*.java")
+
         palantirJavaFormat()
+        removeWildcardImports()
     }
     kotlinGradle {
         target("*.gradle.kts")

@@ -6,8 +6,29 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public record SearchRequest(
-        @Min(1) int page,
-        @Min(1) int size,
-        boolean withoutTotals,
-        List<@Valid @NotNull Sort> sorts,
-        List<@Valid @NotNull Filter> filters) {}
+        @NotNull @Min(1) Integer page,
+        @NotNull @Min(1) Integer size,
+        List<@Valid Filter> filters,
+        List<@Valid Sort> sorts,
+        boolean withoutTotals) {
+
+    public SearchRequest(@NotNull @Min(1) Integer page, @NotNull @Min(1) Integer size) {
+        this(page, size, null, null, false);
+    }
+
+    public SearchRequest(@NotNull @Min(1) Integer page, @NotNull @Min(1) Integer size, @Valid Filter filter) {
+        this(page, size, List.of(filter), null, false);
+    }
+
+    public SearchRequest(@NotNull @Min(1) Integer page, @NotNull @Min(1) Integer size, @Valid Sort sort) {
+        this(page, size, null, List.of(sort), false);
+    }
+
+    public SearchRequest(
+            @NotNull @Min(1) Integer page,
+            @NotNull @Min(1) Integer size,
+            List<@Valid Filter> filters,
+            List<@Valid Sort> sorts) {
+        this(page, size, filters, sorts, false);
+    }
+}

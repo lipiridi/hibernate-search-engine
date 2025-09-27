@@ -82,10 +82,27 @@ public class FieldConvertUtils {
     @Nullable
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static Function<String, Object> convertFunction(Class<?> entityClass) {
-        if (Enum.class.isAssignableFrom(entityClass)) {
-            return value -> Enum.valueOf((Class<? extends Enum>) entityClass, value.toUpperCase());
+        if (!Enum.class.isAssignableFrom(entityClass)) {
+            return ReflectionUtils.CLASS_CAST_FUNCTIONS.get(entityClass);
         }
 
-        return ReflectionUtils.CLASS_CAST_FUNCTIONS.get(entityClass);
+        return value -> {
+            Class<? extends Enum> enumClass = (Class<? extends Enum>) entityClass;
+
+            // Handle name (case-insensitive)
+            if (!value.matches("^-?\\d+$")) {
+                return Enum.valueOf(enumClass, value.toUpperCase());
+            }
+
+            // Handle ordinal (if numeric)
+            Enum[] constants = enumClass.getEnumConstants();
+
+            int ordinal = Integer.parseInt(value);
+            if (ordinal < 0 || ordinal >= constants.length) {
+                throw new HibernateSearchEngineException(
+                        "Invalid ordinal " + ordinal + " for enum " + enumClass.getName());
+            }
+            return constants[ordinal];
+        };
     }
 }
