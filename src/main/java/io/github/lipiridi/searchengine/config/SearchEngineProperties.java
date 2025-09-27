@@ -38,6 +38,7 @@ public class SearchEngineProperties {
                     case DOT_CASE -> sb.append(".").append(strings[i]);
                 }
             }
+
             return sb.toString();
         }
 
