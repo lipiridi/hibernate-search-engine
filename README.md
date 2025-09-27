@@ -52,8 +52,8 @@ Maven:
 
 Customize the library's behavior with the help of configuration properties.
 
-- **Max page size** - limit the search request in order to prohibit large queries to the database
-- **Naming convention** - choose how to generate field names that uses client for searching (in case when you use
+- **Max page size** — limit the search request in order to prohibit large queries to the database
+- **Naming convention** — choose how to generate field names that uses client for searching (in case when you use
   @Searchable annotation)
 
 ```properties
@@ -125,6 +125,7 @@ Here's an example of the search request JSON body output:
 {
   "page": 1,
   "size": 100,
+  "withoutTotals": false,
   "filters": [
     {
       "field": "description",
