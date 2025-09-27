@@ -10,6 +10,7 @@ import io.github.lipiridi.searchengine.dto.Sort;
 import jakarta.annotation.Nullable;
 import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -33,7 +34,8 @@ public class FieldConvertUtils {
         FilterType filterType = filter.type();
         Set<FilterType> allowedFilterTypes = searchField.filterTypes();
 
-        Set<FilterType> existingFiltersByClass = allowedFiltersByClass.get(getCastClass(searchField.fieldType()));
+        Set<FilterType> existingFiltersByClass =
+                allowedFiltersByClass.getOrDefault(getCastClass(searchField.fieldType()), Collections.emptySet());
         if (!existingFiltersByClass.contains(filterType)
                 || (!CollectionUtils.isEmpty(allowedFilterTypes) && !allowedFilterTypes.contains(filterType))) {
             var availableFilters =
